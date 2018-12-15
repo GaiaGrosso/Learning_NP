@@ -1,3 +1,5 @@
+#5D test on Zprime vs. Zmumu
+
 #from __future__ import division                                                                                                                                                  
 import numpy as np
 import os
@@ -77,18 +79,12 @@ class SaturationCounting(callbacks.Callback):
             f.close()
         return
 
-
-print('STARTING BINNED TOYS TRAINING')
 #toy
 toy = sys.argv[2]
-#feature label
-#feature_label = int(sys.argv[3])
 
-#N_D = 10000
-N_Sig = 0 #20
-N_Bkg = 50000#N_D - N_Sig
+N_Sig = 0 #25
+N_Bkg = 50000 #N_D - N_Sig
 N_D = N_Bkg + N_Sig
-#N_bins = 1000
 N_ref = 500000
 N_R = N_ref
 total_epochs=300000
@@ -141,11 +137,11 @@ def binLossD(yTrue,yPred):
     D_label= tf.where(tf.equal(yTrue, Ones), Ones, Zeros)
     return -1.*D_label*(yPred)
 '''
-# define input path                                                                                                                                                                                                                  
-#INPUT_PATH = '/eos/user/g/ggrosso/BINNED/Zsamples'
-#ID='/Z_bins'+str(N_bins)+'_bkg'+str(N_Bkg)+'_sig'+str(N_Sig)
-#INPUT_PATH = INPUT_PATH + ID
-#INPUT_FILE_ID = ID+'_toy'+toy
+# define input path
+#sig+bkg
+INPUT_PATH_SIG = '/eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_13TeV/'
+#reference
+INPUT_PATH_BKG = '/eos/project/d/dshep/BSM_Detection/Zmumu_lepFilter_13TeV/'
 
 # define output path
 OUTPUT_PATH = sys.argv[1]
@@ -163,13 +159,10 @@ u1 = u[0]
 v = np.random.randint(1000, size=1000)
 v1 = v[0]
 
-#reference
-INPUT_PATH_BKG = '/eos/project/d/dshep/BSM_Detection/Zmumu_lepFilter_13TeV/'
-
+#extract randomly reference + bkg events (N_ref+N_Bkg)
 HLF_REF = np.array([])
 HLF_name = ''
 
-#for fileIN in glob.glob("%s/*.h5" %INPUT_PATH_BKG):
 i=0
 for v_i in v:
 #    print(str(v_i))
@@ -195,16 +188,12 @@ for v_i in v:
         break
 print('HLF_REF+BKG shape')
 print(HLF_REF.shape)
-#sig+bkg
-INPUT_PATH_SIG = '/eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_13TeV/'
 
-#HLF_BKG = HLF[N_ref:, :]
-#HLF_REF = HLF[:N_ref, :]
-
+#extract randomly signal events (N_Sig)
 HLF_SIG = np.array([])
 HLF_SIG_name = ''
+
 i=0
-#for fileIN in glob.glob("%s/*.h5" %INPUT_PATH_SIG):
 for u_i in u:
     f = h5py.File(INPUT_PATH_SIG+'Zprime_lepFilter_13TeV_'+str(u_i)+'.h5')
  #   f = h5py.File(fileIN)
@@ -230,17 +219,20 @@ print(HLF_SIG.shape)
 # datasets
 #f = h5py.File(INPUT_PATH+INPUT_FILE_ID+'.h5')
 #feature = f.get("feature")
-target_REF=np.zeros(N_ref)
+target_REF = np.zeros(N_ref)
 print('target_REF shape ')
 print(target_REF.shape)
-target_DATA=np.ones(N_Bkg+N_Sig)
+
+target_DATA = np.ones(N_Bkg+N_Sig)
 print('target_DATA shape ')
 print(target_DATA.shape)
+
 target = np.append(target_REF, target_DATA)
 target = np.expand_dims(target, axis=1)
 print('target shape ')
 print(target.shape)
-feature=np.concatenate((HLF_REF, HLF_SIG), axis=0)
+
+feature = np.concatenate((HLF_REF, HLF_SIG), axis=0)
 
 #5D features construction
 p1 = np.sqrt(np.multiply(feature[:, 0], feature[:, 0])+np.multiply(feature[:, 1], feature[:, 1]))
@@ -251,41 +243,29 @@ eta1 = np.arctanh(np.divide(feature[:, 1], p1))
 eta2 = np.arctanh(np.divide(feature[:, 4], p2))
 delta_phi = np.arctan(np.divide(feature[:, 3], feature[:, 2]))+np.pi*0.5*(1-np.sign(feature[:, 2]))
 
-pt1=np.expand_dims(pt1, axis=1)
-pt2=np.expand_dims(pt2, axis=1)
-eta1=np.expand_dims(eta1, axis=1)
-eta2=np.expand_dims(eta2, axis=1)
-delta_phi=np.expand_dims(delta_phi, axis=1)
+pt1 = np.expand_dims(pt1, axis=1)
+pt2 = np.expand_dims(pt2, axis=1)
+eta1 = np.expand_dims(eta1, axis=1)
+eta2 = np.expand_dims(eta2, axis=1)
+delta_phi = np.expand_dims(delta_phi, axis=1)
 
-final_features=np.concatenate((pt1, pt2), axis=1)
-final_features=np.concatenate((final_features, eta1), axis=1)
-final_features=np.concatenate((final_features, eta2), axis=1)
-final_features=np.concatenate((final_features, delta_phi), axis=1)
+final_features = np.concatenate((pt1, pt2), axis=1)
+final_features = np.concatenate((final_features, eta1), axis=1)
+final_features = np.concatenate((final_features, eta2), axis=1)
+final_features = np.concatenate((final_features, delta_phi), axis=1)
 print('final_features shape ')
 print(final_features.shape)
 
-feature=np.concatenate((final_features, target), axis=1)
+#random shuffle
+feature = np.concatenate((final_features, target), axis=1)
 np.random.shuffle(feature)
 print('feature shape ')
 print(feature.shape)
-target=feature[:, -1]
-feature=feature[:, :-1]
+target = feature[:, -1]
+feature = feature[:, :-1]
 
 #standardize dataset
-'''
-file_name = 'Zreference_'+str(N_bins)+'BINS_'+feature_name[feature_label]+'.h5'
-f_ref = h5py.File(INPUT_PATH_REF+file_name)
-Xf_ref = f_ref.get('x_binned')
-yf_ref = f_ref.get('probability_binned')
-Xf_ref = np.array(Xf_ref)
-yf_ref = np.array(yf_ref)
-f_ref.close()
-
-mean=np.average(Xf_ref, weights=yf_ref)
-std=np.sqrt(np.average((Xf_ref-mean)*(Xf_ref-mean), weights=yf_ref))
-'''
 for j in range(feature.shape[1]):
-
     vec = feature[:, j]
     mean = np.mean(vec)
     std = np.std(vec)
@@ -293,13 +273,15 @@ for j in range(feature.shape[1]):
         vec = vec- mean
         vec = vec *1./ std
     elif np.max(vec) > 1.0:# Assume data is exponential -- just set mean to 1.                                                                      
-        vec = vec *1./ mean
+        vec = vec *1./ mean        
     feature[:, j] = vec
 
 print(target.shape, feature.shape)
 
+print('----------------------------\n')
+print('STARTING TOY TRAINING')
 # training
-batch_size=feature.shape[0]
+batch_size = feature.shape[0]
 BSMfinder = MyModel(feature.shape[1], latentsize, layers)
 BSMfinder.compile(loss = Loss,  optimizer = 'adam')#, metrics=[binLossR, binLossD])
 hist = BSMfinder.fit(feature, target, batch_size=batch_size, epochs=total_epochs, 
