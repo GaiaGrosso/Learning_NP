@@ -1,0 +1,29 @@
+How to run toys using condor in lxplus.cern.ch
+
+1) in Z_5D.py: set parameters of the training 
+	N_Sig = 0
+	N_Bkg = 5000
+	N_ref = 50000
+	total_epochs = 300000
+	latentsize = 5 # number of internal nodes
+	patience = 5000 # number of epochs between two consecutives saving point
+	weight_clipping = 2
+	
+2) in run_z_5D_toys.py: set the maximum execution time (in seconds) 
+	script_condor.write("+MaxRuntime = 500000\n")
+
+3) from terminal:
+
+	python [path_to_run_z_5D_toys]/run_z_5D_toys.py 
+			-i [input_path_Zprime_folder] 
+			-o [output_path] 
+			-p [path_to_Z_5D.py]Z_5D.py  
+			-t [number_toys]
+
+note:
+paths to the repositories for Zprime events [input_path_Zprime_folder]:
+
+/eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_200GeV_13TeV/
+/eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_300GeV_13TeV/
+/eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_400GeV_13TeV/
+/eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_500GeV_13TeV/
