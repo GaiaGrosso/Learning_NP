@@ -250,7 +250,7 @@ print(target.shape, feature.shape)
 
 # training
 batch_size=feature.shape[0]
-BSMfinder = MyModel(feature.shape[1], latentsize)
+BSMfinder = MyModel(feature.shape[1], latentsize, layers)
 BSMfinder.compile(loss = Loss,  optimizer = 'adam')#, metrics=[binLossR, binLossD])
 hist = BSMfinder.fit(feature, target, batch_size=batch_size, epochs=total_epochs, 
                      verbose=0)
