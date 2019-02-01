@@ -40,6 +40,7 @@ N_R = N_ref
 
 total_epochs=200000
 latentsize=5 # number of internal nodes
+layers=3
 
 patience=5000 # number of epochs between two consecutives saving point
 weight_clipping=2
@@ -60,9 +61,11 @@ class WeightClip(Constraint):
         return {'name': self.__class__.__name__,
                 'c': self.c}
 
-def MyModel(nInput, latentsize):
+def MyModel(nInput, latentsize, layers):
     inputs = Input(shape=(nInput, ))
     dense  = Dense(latentsize, input_shape=(nInput,), activation='sigmoid', W_constraint = WeightClip(weight_clipping))(inputs)
+    for l in range(layers-1):
+        dense  = Dense(latentsize, input_shape=(latentsize,), activation='sigmoid', W_constraint = WeightClip(weight_clipping))(dense)
     output = Dense(1, input_shape=(latentsize,), activation='linear', W_constraint = WeightClip(weight_clipping))(dense)
     model = Model(inputs=[inputs], outputs=[output])
     return model
