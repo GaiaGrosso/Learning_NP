@@ -15,9 +15,12 @@ if __name__ == '__main__':
 #    parser.add_argument('-f', '--feature', type=str, default = "0", help="feature of the input daatset to be analyzed")
     parser.add_argument('-t', '--toys', type=str, default = "1000", help="number of toys to be processed")
     args = parser.parse_args()
-
+    
+    #folder to save the outputs of the pyscript
     mydir = args.output+"/"
     os.system("mkdir %s" %mydir)
+    
+    #folder to save the outputs of each condor job (file.out, file.log, file.err)
     label = args.output.split("/")[-1]+'_5D_'+str(time.time())
     os.system("mkdir %s" %label)
 
@@ -31,7 +34,8 @@ if __name__ == '__main__':
             script_src.write("python %s/%s %s %s %s" %(os.getcwd(),args.pyscript, mydir, joblabel, args.input))
             script_src.close()
             os.system("chmod a+x %s/%s.src" %(label, joblabel))
-#            os.system("bsub -q %s -o %s/%s.log -J %s_%s < %s/%s.src" %(args.queue, label, joblabel, label, joblabel, label, joblabel))
+            #os.system("bsub -q %s -o %s/%s.log -J %s_%s < %s/%s.src" %(args.queue, label, joblabel, label, joblabel, label, joblabel))
+            
             # condor file
             script_condor = open("%s/%s.condor" %(label, joblabel) , 'w')
             script_condor.write("executable = %s/%s.src\n" %(label, joblabel))
