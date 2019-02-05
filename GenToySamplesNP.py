@@ -26,13 +26,23 @@ if __name__ == '__main__':
 	parser.add_argument('-s', '--seed', type=int, help='Specify seed', required=True)
 
 	args = parser.parse_args()
-
+	
+	#set the random seed
 	np.random.seed(int(args.seed))
 	
         #whether flat distribution
         FLAT=True
+	
+	#choose the case of new physics
+	#NP = 0 no new physics signal
+	#NP = 1 peak in the tail
+	#NP = 2 excess in the tail
+	#NP = 3 peak in the bulk
 	NP = 1 #0, 1, 2, 3
-	NevBkg = 2000#2010-90 #2000
+	
+	NevBkg = 2000
+	NevtMC = 20000
+	NevSig = 0
 	
 	if NP == 0:
 		NevSig = 0
@@ -45,56 +55,62 @@ if __name__ == '__main__':
         else:
             raise Exception('You must specify NP variable between 0 and 3!')
 	
-	#NevSig = 10
-	NevtMC = 20000
 
 	for i in range(int(args.toys)):
-            # reference                                                                                            
-            # featureMC = np.random.exponential(scale=0.125, size=NevtMC)
+                                                                                                        
+           
             if NP==0:
                 if FLAT:
-                    featureMC = np.random.rand(NevtMC,)
-                    featureData = np.random.rand(NevSig+NevBkg,)
+		    	# reference
+                    	featureMC = np.random.rand(NevtMC,)
+		    	# data sample
+                    	featureData = np.random.rand(NevSig+NevBkg,)
                 else:
-                    # reference
-                    featureMC = np.random.exponential(scale=0.125, size=NevtMC)
-                    # data sample                                                                                          
-                    featureData = np.random.exponential(scale=0.125, size=NevBkg)
+			# reference
+                    	featureMC = np.random.exponential(scale=0.125, size=NevtMC)
+                    	# data sample                                                                                          
+                    	featureData = np.random.exponential(scale=0.125, size=NevBkg)
             elif NP==1:
                 if FLAT:
-                    featureMC = np.random.rand(NevtMC,)
-                    featureData = np.random.rand(NevSig+NevBkg,)
+			# reference
+                    	featureMC = np.random.rand(NevtMC,)
+			# data sample
+                    	featureData = np.random.rand(NevSig+NevBkg,)
                 else:
-                    # reference                                                                                            
-                    featureMC = np.random.exponential(scale=0.125, size=NevtMC)
-                    # data sample
-                    featureData = np.random.exponential(scale=0.125, size=NevBkg)
-                    featureSig = np.random.normal(loc=0.8, scale=0.02, size=NevSig)
-                    featureData = np.concatenate((featureData, featureSig), axis =0)
+                    	# reference                                                                                            
+                    	featureMC = np.random.exponential(scale=0.125, size=NevtMC)
+                    	# data sample
+                    	featureData = np.random.exponential(scale=0.125, size=NevBkg)
+                    	featureSig = np.random.normal(loc=0.8, scale=0.02, size=NevSig)
+                    	featureData = np.concatenate((featureData, featureSig), axis =0)
 		
             elif NP==2:
                 if FLAT:
-                    featureMC = np.random.rand(NevtMC,)
-                    featureData = np.random.rand(NevSig+NevBkg,)
+			# reference
+                    	featureMC = np.random.rand(NevtMC,)
+			# data sample
+                    	featureData = np.random.rand(NevSig+NevBkg,)
                 else:
-                    # reference                                                                                            
-                    featureMC = np.random.exponential(scale=0.125, size=NevtMC)
-                    # data sample 
-                    featureData = np.random.exponential(scale=0.125, size=NevBkg)
-                    featureSig = NP2_gen(size =NevSig, seed=int(args.seed))
-                    featureData = np.concatenate((featureData, featureSig), axis =0)
+                    	# reference                                                                                            
+                    	featureMC = np.random.exponential(scale=0.125, size=NevtMC)
+                    	# data sample 
+                    	featureData = np.random.exponential(scale=0.125, size=NevBkg)
+                    	featureSig = NP2_gen(size =NevSig, seed=int(args.seed))
+                    	featureData = np.concatenate((featureData, featureSig), axis =0)
 			
             elif NP==3:
                 if FLAT:
-                    featureMC = np.random.rand(NevtMC,)
-                    featureData = np.random.rand(NevSig+NevBkg,)
+			# reference
+                    	featureMC = np.random.rand(NevtMC,)
+                    	# data sample
+			featureData = np.random.rand(NevSig+NevBkg,)
                 else:
-                    # reference                                                                                            
-                    featureMC = np.random.exponential(scale=0.125, size=NevtMC)
-                    # data sample
-                    featureData = np.random.exponential(scale=0.125, size=NevBkg)
-                    featureSig = np.random.normal(loc=0.2, scale=0.02, size=NevSig)
-                    featureData = np.concatenate((featureData, featureSig), axis =0)
+                    	# reference                                                                                            
+                    	featureMC = np.random.exponential(scale=0.125, size=NevtMC)
+                    	# data sample
+                    	featureData = np.random.exponential(scale=0.125, size=NevBkg)
+                    	featureSig = np.random.normal(loc=0.2, scale=0.02, size=NevSig)
+                    	featureData = np.concatenate((featureData, featureSig), axis =0)
             
 
 
