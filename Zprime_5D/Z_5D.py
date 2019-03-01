@@ -97,7 +97,7 @@ def binLossD(yTrue,yPred):
 # define output path
 
 #f_id=feature_name[feature_label]
-ID='/Z_5D_patience'+str(patience)+'_ref'+str(N_ref)+'_bkg'+str(N_Bkg)+'_sig'+str(N_Sig)+'_epochs'+str(total_epochs)+'_latent'+str(latentsize)+'_wclip'+str(weight_clipping)
+ID = '/Z_5D_patience'+str(patience)+'_ref'+str(N_ref)+'_bkg'+str(N_Bkg)+'_sig'+str(N_Sig)+'_epochs'+str(total_epochs)+'_latent'+str(latentsize)+'_wclip'+str(weight_clipping)
 OUTPUT_PATH = OUTPUT_PATH+ID
 if not os.path.exists(OUTPUT_PATH):
     os.makedirs(OUTPUT_PATH)
@@ -150,7 +150,7 @@ for v_i in v:
     f.close()
     #print(HLF_REF.shape)                                                                                                                            
     if HLF_REF.shape[0]>=N_ref+N_Bkg:
-        HLF_REF=HLF_REF[:N_ref+N_Bkg, :]
+        HLF_REF = HLF_REF[:N_ref+N_Bkg, :]
         break
 print('HLF_REF+BKG shape')
 print(HLF_REF.shape)
@@ -177,7 +177,7 @@ for u_i in u:
     if not hlf_names:
         continue
     #select the column with px1, pz1, px2, py2, pz2                                                                                                              
-    cols=[0, 1, 7, 8, 9]
+    cols = [0, 1, 7, 8, 9]
     if i==0:
         HLF_SIG=hlf[:, cols]
         i=i+1
@@ -191,17 +191,17 @@ print('HLF_SIG shape')
 print(HLF_SIG.shape)
 
 #build labels
-target_REF=np.zeros(N_ref)
+target_REF = np.zeros(N_ref)
 print('target_REF shape ')
 print(target_REF.shape)
-target_DATA=np.ones(N_Bkg+N_Sig)
+target_DATA = np.ones(N_Bkg+N_Sig)
 print('target_DATA shape ')
 print(target_DATA.shape)
 target = np.append(target_REF, target_DATA)
 target = np.expand_dims(target, axis=1)
 print('target shape ')
 print(target.shape)
-feature=np.concatenate((HLF_REF, HLF_SIG), axis=0)
+feature = np.concatenate((HLF_REF, HLF_SIG), axis=0)
 
 #5D features construction (feature columns: [lep1px, lep1pz, lep2px, lep2py, lep2pz] )
 p1 = np.sqrt(np.multiply(feature[:, 0], feature[:, 0])+np.multiply(feature[:, 1], feature[:, 1]))
@@ -210,28 +210,29 @@ pt2 = np.sqrt(np.multiply(feature[:, 2], feature[:, 2])+np.multiply(feature[:, 3
 p2 = np.sqrt(np.multiply(pt2, pt2)+np.multiply(feature[:, 4], feature[:, 4]))
 eta1 = np.arctanh(np.divide(feature[:, 1], p1))
 eta2 = np.arctanh(np.divide(feature[:, 4], p2))
-delta_phi = np.arctan(np.divide(feature[:, 3], feature[:, 2]))+np.pi*0.5*(1-np.sign(feature[:, 2]))
+phi1 = np.arccos(np.divide(feature[:, 0], pt1))
+phi2 = np.sign(feature[:, 3])*np.arccos(np.divide(feature[:, 2], pt2))+np.pi*(1-np.sign(feature[:, 3]))
+delta_phi = phi2 - phi1
+pt1 = np.expand_dims(pt1, axis=1)
+pt2 = np.expand_dims(pt2, axis=1)
+eta1 = np.expand_dims(eta1, axis=1)
+eta2 = np.expand_dims(eta2, axis=1)
+delta_phi = np.expand_dims(delta_phi, axis=1)
 
-pt1=np.expand_dims(pt1, axis=1)
-pt2=np.expand_dims(pt2, axis=1)
-eta1=np.expand_dims(eta1, axis=1)
-eta2=np.expand_dims(eta2, axis=1)
-delta_phi=np.expand_dims(delta_phi, axis=1)
-
-final_features=np.concatenate((pt1, pt2), axis=1)
-final_features=np.concatenate((final_features, eta1), axis=1)
-final_features=np.concatenate((final_features, eta2), axis=1)
-final_features=np.concatenate((final_features, delta_phi), axis=1)
+final_features = np.concatenate((pt1, pt2), axis=1)
+final_features = np.concatenate((final_features, eta1), axis=1)
+final_features = np.concatenate((final_features, eta2), axis=1)
+final_features = np.concatenate((final_features, delta_phi), axis=1)
 print('final_features shape ')
 print(final_features.shape)
 
 # concatenate features and targets, shuffle
-feature=np.concatenate((final_features, target), axis=1)
+feature = np.concatenate((final_features, target), axis=1)
 np.random.shuffle(feature)
 print('feature shape ')
 print(feature.shape)
-target=feature[:, -1]
-feature=feature[:, :-1]
+target = feature[:, -1]
+feature = feature[:, :-1]
 
 #standardize dataset 
 for j in range(feature.shape[1]):
