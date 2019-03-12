@@ -113,10 +113,12 @@ print('Start analyzing Toy '+toy)
 #extract input events
 
 #random integer to select Zprime file between 0 and 19 (20 input files)                                                                                                       
-u = np.random.randint(20, size=20)
+u = np.arange(20)
+np.random.shuffle(u)
 u1 = u[0]
 #random integer to select Zmumu file between 0 and 999 (1000 input files)
-v = np.random.randint(1000, size=1000)
+v = np.arange(1000)
+np.random.shuffle(v)
 v1 = v[0]
 
 #column names in the input h5 files
