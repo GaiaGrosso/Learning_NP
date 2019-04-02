@@ -35,7 +35,7 @@ INPUT_PATH_BKG = '/eos/project/d/dshep/BSM_Detection/Zmumu_lepFilter_13TeV/'
 N_Sig = 0
 N_Bkg = 5000
 N_ref = 50000
-N_D = N_Bkg + N_Sig
+N_D = N_Bkg  #+ N_Sig
 N_R = N_ref
 
 total_epochs=200000
