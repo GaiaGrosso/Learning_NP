@@ -18,8 +18,7 @@ from keras.constraints import Constraint, max_norm
 from keras import callbacks
 from keras import metrics, losses, optimizers
 from keras.models import Model, Sequential
-from keras.layers import Dense, Activation, Input, Conv1D, Flatten, Dropout, LeakyReLU, Layer
-#from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TerminateOnNaN, ProgbarLogger                                                                                      
+from keras.layers import Dense, Activation, Input, Conv1D, Flatten, Dropout, LeakyReLU, Layer                                                                                      
 from keras.utils import plot_model
 
 #output path
