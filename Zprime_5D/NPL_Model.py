@@ -30,30 +30,50 @@ class WeightClip(Constraint):
         return {'name': self.__class__.__name__,
                 'c': self.c}
 
-def NPL_Model(nInput, latentsize=5, layers=3):
+def NPL_Model(nInput, latentsize=5, layers=3, weight_clipping=1.):
     """
     nInput: number of input features
     latentsize: number of neurons in each latent layer
     layers: number of layers
     """
     inputs = Input(shape=(nInput, ))
-    dense  = Dense(latentsize, input_shape=(nInput,), activation='sigmoid', W_constraint = WeightClip(weight_clipping))(inputs)
+    
+    dense  = Dense(latentsize, input_shape=(nInput,), 
+                   activation='sigmoid', 
+                   W_constraint = WeightClip(weight_clipping))(inputs)
+    
     for l in range(layers-1):
-        dense  = Dense(latentsize, input_shape=(latentsize,), activation='sigmoid', W_constraint = WeightClip(weight_clipping))(dense)
-    output = Dense(1, input_shape=(latentsize,), activation='linear', W_constraint = WeightClip(weight_clipping))(dense)
+        dense  = Dense(latentsize, input_shape=(latentsize,), 
+                       activation='sigmoid', 
+                       W_constraint = WeightClip(weight_clipping))(dense)
+        
+    output = Dense(1, input_shape=(latentsize,), 
+                   activation='linear', 
+                   W_constraint = WeightClip(weight_clipping))(dense)
+    
     model = Model(inputs=[inputs], outputs=[output])
     return model
 
-def NPL_Model_v2(nInput, layers=[5, 5, 5]):
+def NPL_Model_v2(nInput, layers=[5, 5, 5], weight_clipping=1.):
     """
     nInput: number of input features
     layers: list of integers descibing the length of each latent layer
     """
     inputs = Input(shape=(nInput, ))
-    dense  = Dense(layers[0], input_shape=(nInput,), activation='relu', W_constraint = WeightClip(weight_clipping))(inputs)
+    
+    dense  = Dense(layers[0], input_shape=(nInput,), 
+                   activation='sigmoid', 
+                   W_constraint = WeightClip(weight_clipping))(inputs)
+    
     for l in range(len(layers)-1):
-        dense  = Dense(layers[l+1], input_shape=(layers[l],), activation='relu', W_constraint = WeightClip(weight_clipping))(dense)
-    output = Dense(1, input_shape=(layers[-1],), activation='linear', W_constraint = WeightClip(weight_clipping))(dense)
+        dense  = Dense(layers[l+1], input_shape=(layers[l],), 
+                       activation='sigmoid', 
+                       W_constraint = WeightClip(weight_clipping))(dense)
+        
+    output = Dense(1, input_shape=(layers[-1],), 
+                   activation='linear', 
+                   W_constraint = WeightClip(weight_clipping))(dense)
+    
     model = Model(inputs=[inputs], outputs=[output])
     return model
 
