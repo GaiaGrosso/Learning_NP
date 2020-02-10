@@ -1,3 +1,7 @@
+import numpy as np
+import os
+import h5py
+
 def BuildSample_DY(N_Events, INPUT_PATH, seed, nfiles=20):
     #random integer to select Zprime file between n files                                                                                                                                                             
     u = np.arange(nfiles)#np.random.randint(100, size=100)                                                                                                                                                            
