@@ -21,6 +21,9 @@ from keras.models import Model, Sequential
 from keras.layers import Dense, Activation, Input, Conv1D, Flatten, Dropout, LeakyReLU, Layer                                                                                      
 from keras.utils import plot_model
 
+from Data_Reader import BuildSample_DY
+from NPL_Model import NPL_Model
+
 #output path
 OUTPUT_PATH = sys.argv[1]
 #toy
