@@ -9,69 +9,70 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm, expon, chi2, uniform, poisson, ncx2
 
 
-def Build_Data1D_Expo(scale, N_ref, N_Bkg, seed):
-  """
-  Build_Data1D_Expo generates a reference sample and a data sample distributed according to an exponential distribution:
-  x ~ 1/scale * exp(-x/scale)
-  Inputs:
-  - scale:        parameter of the exponential distribution (float)
-  - N_ref, N_Bkg: size of the reference and the data samples (int)
-  - seed:         numpy random seed for the initialization (int)
-  """
+def Build_Data1D_Expo(scale, N_ref, N_Data, seed):
+	"""
+	Build_Data1D_Expo generates a reference sample and a data sample distributed according to an exponential distribution:
+	x ~ 1/scale * exp(-x/scale)
+	Inputs:
+	- scale:         parameter of the exponential distribution (float)
+	- N_ref, N_Data: size of the reference and the data samples (int)
+	- seed:          numpy random seed for the initialization (int)
+	"""
     np.random.seed(seed)
-    feature = np.random.exponential(scale=scale, size=(N_ref+N_Bkg, 1))
+    feature = np.random.exponential(scale=scale, size=(N_ref+N_Data, 1))
     feature_REF  = feature[:N_ref, :]
     feature_DATA = feature[N_ref:, :]
     target_REF   = np.zeros(N_ref)
-    target_DATA  = np.ones(N_Bkg)
+    target_DATA  = np.ones(N_Data)
    
     return feature_REF, feature_DATA, target_REF, target_DATA
 
 
 def Apply_nu(DATA, nu):
-  """
-  Apply_nu modifies the data sample applying the effects of a nuisance parameter on the scale of the exponential distribution:
-  x --> x' = nu * x
-  
-  Inputs:
-  - DATA: data sample (numpy array shape:(N, 1))
-  - nu: nuisance effect
-  """
+	"""
+	Apply_nu modifies the data sample applying the effects of a nuisance parameter on the scale of the exponential distribution:
+	x --> x' = nu * x
+
+	Inputs:
+	- DATA: data sample (numpy array shape:(N, 1))
+	- nu: nuisance effect
+	"""
     DATA_new = nu*np.copy(DATA)
     return DATA_new
 
   
  def Compute_correction_Expo1D_ExpoNu(fileIN, N_ref, N_Data, 
                                       scale_REF, scale_DATA, scale_star, sigma,
-                                      t_corrected_list, nubest_list, t_list, Delta1_list, 
-                                      Delta2_list, Delta_list, mean_list, nu0_list,
+                                      t_corrected_list, t_list, Delta1_list, 
+                                      Delta2_list, Delta_list, mean_list, nu0_list, nubest_list,
                                       Pois=False, verbose=False):
   
-  """
-  Compute_correction_Expo1D_ExpoNu reads the NN output (t= -2*Loss_final) from fileIN; 
-  computes the correction terms Delta1 and Delta2 and applies them to t (t_corrected = t - (Delta1 + Delta2) ).
-  Parametrization chosen for the exponential distribution affected by a scale nuisance:
-  x ~ 1/exp(nu) * exp(-x/exp(nu))
-  
-  Inputs:
-  - fileIN: file storing the NN output (.txt)
-  - N_ref: size of the reference sample (int)
-  - N_Data: median size of the data sample, poissonian distributed (int)
-  - scale_REF: exp(nu_REF)
-  - scale_DATA: exp(nu_DATA)
-  - scale_star: exp(nu_star)
-  - sigma: nu_DATA ~ Norm(nu_star, sigma)
-  - t_list: list to which t for fileIN is appended
-  - t_corrected_list: list to which t_corrected for fileIN is appended
-  - Delta_list: list to which Delta for fileIN output correction is appended
-  - Delta1_list: list to which Delta1 for fileIN output correction is appended
-  - Delta2_list: list to which Delta2 for fileIN output correction is appended
-  - nubest_list: list to which nu_best for fileIN output correction is appended
-  - nu0_list: list to which nu0 genrated according to Norm(nu_star, sigma) is appended
-  - mean_list: list to which the sample mean is appended
-  - Pois: True if the size of the data sample has to be generated according to Poissonian(N_Data)
-  - verbose: True to print the outputs
-  """
+	"""
+	Compute_correction_Expo1D_ExpoNu reads the NN output (t= -2*Loss_final) from fileIN; 
+	computes the correction terms Delta1 and Delta2 and applies them to t (t_corrected = t - (Delta1 + Delta2) ).
+	Parametrization chosen for the exponential distribution affected by a scale nuisance:
+
+	x ~ 1/exp(nu) * exp(-x/exp(nu))
+
+	Inputs:
+	- fileIN: file storing the NN output (.txt)
+	- N_ref: size of the reference sample (int)
+	- N_Data: median size of the data sample, poissonian distributed (int)
+	- scale_REF: exp(nu_REF)
+	- scale_DATA: exp(nu_DATA)
+	- scale_star: exp(nu_star)
+	- sigma: nu_DATA ~ Norm(nu_star, sigma)
+	- t_list: list to which t for fileIN is appended
+	- t_corrected_list: list to which t_corrected for fileIN is appended
+	- Delta_list: list to which Delta for fileIN output correction is appended
+	- Delta1_list: list to which Delta1 for fileIN output correction is appended
+	- Delta2_list: list to which Delta2 for fileIN output correction is appended
+	- nubest_list: list to which nu_best for fileIN output correction is appended
+	- nu0_list: list to which nu0 genrated according to Norm(nu_star, sigma) is appended
+	- mean_list: list to which the sample mean is appended
+	- Pois: True if the size of the data sample has to be generated according to Poissonian(N_Data)
+	- verbose: True to print the outputs
+	"""
     
     # read t
     f = open(fileIN)
@@ -97,13 +98,14 @@ def Apply_nu(DATA, nu):
     
     # DATA
     feature_REF, feature_DATA, target_REF, target_DATA = Build_Data1D_Expo(1., N_ref, N_Data_p, seed)
-    feature_REF  = Apply_nu(feature_REF, p_scale_REF)
-    feature_DATA = Apply_nu(feature_DATA, p_scale_DATA)
+    feature_REF  = Apply_nu(feature_REF, scale_REF)
+    feature_DATA = Apply_nu(feature_DATA, scale_DATA)
 
     # Maximum
     Deltas  = np.array([])
     Deltas1 = np.array([])
     Deltas2 = np.array([])
+
     # list to be scanned to find the nu best fit
     scale_list = np.linspace(scale_star-0.1, p_star+0.1, 1000)
     
@@ -113,19 +115,17 @@ def Apply_nu(DATA, nu):
     
     # generate nu0 ~ Norm(nu_star, sigma) (value of nu which is derived by auxiliary measurements)
     nu_star = np.log(scale_star)
-    nu0 = np.random.normal(loc=nu_star, scale=sigma, size=1)
-    nu0 = nu0[0]
+    nu_REF  = np.log(scale_REF)
+    nu0     = np.random.normal(loc=nu_star, scale=sigma, size=1)
+    nu0     = nu0[0]
     
     # search the maximum
     for sc in scale_list:
         nu = np.log(sc)
-        nu_REF = np.log(scale_REF)
+        
         L_aux0  = norm.pdf(nu0,    loc=nu0, scale=sigma)
         L_aux1  = norm.pdf(nu,     loc=nu0, scale=sigma)
         L_aux2  = norm.pdf(nu_REF, loc=nu0, scale=sigma)
-        #a1 = -1./(2*sigma**2)*((ps-nu0)*(ps-nu0)-(p_scale_REF-nu0)*(p_scale_REF-nu0))
-        #a2 = 1./(2*sigma**2)*((p_scale_REF-nu0)*(p_scale_REF-nu0))
-        #a3 = -1./(2*sigma**2)*((ps-nu0)*(ps-nu0))
         
         sum_log = -feature_DATA.shape[0]*np.log(sc*1./scale_REF) + (1./scale_REF-1./sc)*np.sum(feature_DATA[:, 0])
         
@@ -139,41 +139,42 @@ def Apply_nu(DATA, nu):
         
     #######################################################    
     nubest      = np.log(scale_list[np.argmax(Deltas)])
-    R           = Deltas[np.argmax(Deltas)]  #np.max(Deltas[:, 1])
-    R1          = Deltas1[np.argmax(Deltas)]
-    R2          = Deltas2[np.argmax(Deltas)]
-    t_corrected = t-R
+    D           = Deltas[np.argmax(Deltas)] 
+    D1          = Deltas1[np.argmax(Deltas)]
+    D2          = Deltas2[np.argmax(Deltas)]
+    t_corrected = t - D
     
     t_corrected_list = np.append(t_corrected_list, t_corrected)
     nubest_list      = np.append(nubest_list, nubest)
     mean_list        = np.append(mean_list, np.mean(feature_DATA[:, 0]))
     nu0_list         = np.append(nu0_list, nu0)
-    Delta_list       = np.append(Delta_list,  R )
-    Delta1_list      = np.append(Delta1_list, R1)
-    Delta2_list      = np.append(Delta2_list, R2)
+    Delta_list       = np.append(Delta_list,  D )
+    Delta1_list      = np.append(Delta1_list, D1)
+    Delta2_list      = np.append(Delta2_list, D2)
     
     # Print results:
     if verbose:
-        print('N BKG:         %i'%(N_Data_p)) 
-        print('REF  pscale:   %f'%(scale_REF)) 
-        print('DATA pscale:   %f'%(scale_DATA)) 
+    	print('N DATA:         %i'%(N_Data_p)) 
+        print('REF  scale:    %f'%(scale_REF)) 
+        print('DATA scale:    %f'%(scale_DATA)) 
         print('DATA mean:     %f'%(np.mean(feature_DATA[:, 0])))
         print('Generated nu0: %f'%(nu0)) 
         print('Best nu:       %f'%(nubest)) 
 
-        print('Correction TOT: %s'%(R))
-        print('Correction   1: %s'%(R1))
-        print('Correction   2: %s'%(R2))
+        print('Correction TOT: %s'%(D))
+        print('Correction   1: %s'%(D1))
+        print('Correction   2: %s'%(D2))
         print('t             : %s'%(t))
         print('Corrected t   : %s'%(t_corrected))
-    return t_corrected_list, nubest_list, t_list, Delta1_list, Delta2_list, Delta_list, mean_list, nu0_list
+    return t_corrected_list, t_list, Delta1_list, Delta2_list, Delta_list, mean_list, nu0_list, nubest_list
 
 ###########################################################################################
 # PLOTTING FUNCTIONS and P-VALUE evaluation for the compatibility with target distributions
 
-def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scale_star, sigma, plot=True, verbose=False):
+def Delta_hist(Delta1, Delta2, scale_REF, scale_star, sigma, df1=1, df2=1, bins1=10, bins2=10,  
+	       	   plot=True, verbose=False):
     
-    plt.subplots(1, 2, figsize=(15, 6))
+	plt.subplots(1, 2, figsize=(15, 6))
     
     # Delta1 hist
     plt.subplot(1, 2, 1)
@@ -247,15 +248,15 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
     plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
               fontsize=16)
     if verbose:
-      print('DELTA 1: dof %i, test %s, pval %s'%(bins1-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
-      print('DELTA 1: dof %i, test %s, pval %s'%(bins2-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
+    	print('DELTA 1: dof %i, test %s, pval %s'%(bins1-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
+    	print('DELTA 1: dof %i, test %s, pval %s'%(bins2-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
     if plot:
-			plt.show()
+		plt.show()
    	plt.close()
    	return pval_1, pval_2
 	
   ###########################################################################################
-	def correlation_plots(t, Delta, Delta1, Delta2, nubest, nu0, scale_REF, scale_star, sigma):
+def correlation_plots(t, Delta, Delta1, Delta2, nubest, nu0, scale_REF, scale_star, sigma):
     plt.subplots(2, 2, figsize=(15, 15))
     plt.subplot(2, 2, 1)
     plt.scatter(t, Delta, label='Correlation', s=7)
@@ -292,11 +293,11 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
     plt.close()
     return
 	
-	###################################################################
-	def nu_hist(nubest, mean, scale_REF, scale_star, sigma, plot=True):
+###################################################################
+def nu_hist(nubest, mean, scale_REF, scale_star, sigma, plot=True):
     plt.subplots(1, 2, figsize=(15, 5))
     # nubest hist
-		plt.subplot(1, 2, 2)
+	plt.subplot(1, 2, 2)
     plt.hist(nubest, density=True, alpha=0.5, color='darkorange',
              label='Median: %s, std: %s'%(str(np.around(np.median(nubest), 3)), str(np.around(np.std(nubest), 3))))
     plt.hist(nubest, density=True, color='darkorange', histtype='step', lw=2)
@@ -305,7 +306,7 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
               fontsize=16)
     plt.legend(fontsize=14)
     
-		#mean hist
+	#mean hist
     plt.subplot(1, 2, 1)
     plt.hist(mean, density=True, alpha=0.5, color='darkorange',
              label='Median: %s, std: %s'%(str(np.around(np.median(mean), 3)), str(np.around(np.std(mean), 3))))
@@ -318,12 +319,12 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
     plt.close()
     return
 	
-	##########################################################################
-	def t_hist(t, t_corrected, Delta, Delta1, Delta2, nubest, scale_REF, scale_star, sigma,
-             bins1=10, bins2=10, bins3=10, bins4=10, xmin2=0, xmax2=30, xmin3=0, xmax3=30, xmin4=0, xmax4=30, df=10, n=7,
-             plot=True, verbose=False):
+##########################################################################
+def t_hist(t, t_corrected, Delta, Delta1, Delta2, nubest, scale_REF, scale_star, sigma,
+           bins1=10, bins2=10, bins3=10, bins4=10, xmin2=0, xmax2=30, xmin3=0, xmax3=30, xmin4=0, xmax4=30, df=10, n=7,
+           plot=True, verbose=False):
     
-    plt.subplots(2, 2, figsize=(15, 15))
+  	plt.subplots(2, 2, figsize=(15, 15))
     plt.subplot(2, 2, 1)
     xmin = np.min(-Delta)-0.1
     xmax = np.max(-Delta)+0.1
@@ -381,7 +382,7 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
     plt.xlabel('t(D)', fontsize=16)
     plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(p_scale_REF, 3)),str(np.around(p_star, 3)), str(np.around(sigma, 4))), 
               fontsize=16)
-		if verbose:
+	if verbose:
     	print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
     	print('tc: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
     #______________________________________________________________________________________________
@@ -397,8 +398,7 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
              label=r'$\chi^2$(%s) pdf'%(str(df)))
     
     x = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
-    
-		# expected counts
+    # expected counts
     a = []
     for i in range(bins3):
         a_i = chi2.cdf(xmin+(i+1)*(xmax-xmin)*1./bins3, df3) - chi2.cdf(xmin+i*(xmax-xmin)*1./bins3, df3)
@@ -420,14 +420,14 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
              label=r'NN output SM(%s) - $\Delta_1$'%(str(np.around(p_scale_REF, 3)))+'\n p-value: %s'%(str(np.around(pval_2, 4))), histtype='step', lw=3)
     
     plt.errorbar(x, h[0], yerr=np.sqrt(h[0])*1./np.sqrt(len(t)), lw=1.5, color='darkorange', ls='none', marker='s')
-		plt.legend(fontsize=14)
+	plt.legend(fontsize=14)
     plt.xlabel('t(D)', fontsize=16)
     plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(p_scale_REF, 3)),str(np.around(p_star, 3)), str(np.around(sigma, 4))), 
               fontsize=16)
 		
-		if verbose:
-     print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
-     print('tc1: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
+	if verbose:
+		print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
+		print('tc1: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
     #______________________________________________________________________________________________
     
     plt.subplot(2, 2, 4)
@@ -440,8 +440,7 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
              label=r'$\chi^2$(%s) pdf'%(str(df)))
     
     x = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
-		
-		# expected counts
+    # expected counts
     a = []
     for i in range(bins3):
         a_i = chi2.cdf(xmin+(i+1)*(xmax-xmin)*1./bins3, df3) - chi2.cdf(xmin+i*(xmax-xmin)*1./bins3, df3)
@@ -468,10 +467,10 @@ def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scal
     plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(p_scale_REF, 3)),str(np.around(p_star, 3)), str(np.around(sigma, 4))), 
               fontsize=16)
     if verbise:
-		 print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
-     print('tc2: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
+		print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
+     	print('tc2: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
     #______________________________________________________________________________________
-		if plot:
+	if plot:
         plt.show()
     plt.close()
     return pval_1, pval_2
