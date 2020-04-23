@@ -24,7 +24,7 @@ def Build_Data1D_Expo(scale, N_ref, N_Bkg, seed):
     feature_DATA = feature[N_ref:, :]
     target_REF   = np.zeros(N_ref)
     target_DATA  = np.ones(N_Bkg)
-    
+   
     return feature_REF, feature_DATA, target_REF, target_DATA
 
 
@@ -168,3 +168,311 @@ def Apply_nu(DATA, nu):
         print('Corrected t   : %s'%(t_corrected))
     return t_corrected_list, nubest_list, t_list, Delta1_list, Delta2_list, Delta_list, mean_list, nu0_list
 
+###########################################################################################
+# PLOTTING FUNCTIONS and P-VALUE evaluation for the compatibility with target distributions
+
+def Delta_hist(Delta1, Delta2, df1=1, df2=1, bins1=10, bins2=10, scale_REF, scale_star, sigma, plot=True, verbose=False):
+    
+    plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Delta1 hist
+    plt.subplot(1, 2, 1)
+    xmin = np.min(Delta1)
+    xmax = np.max(Delta1)
+    if xmax<5: xmax = 5
+    bins = bins1
+    df   = df1
+    rv   = chi2(df)
+    xrv  = chi2.rvs(df, size=10000)
+    x    = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
+    
+    #expected counts
+    a = []
+    for i in range(bins1):
+        a_i = chi2.cdf(xmin+(i+1)*(xmax-xmin)*1./bins1, df1) - chi2.cdf(xmin+i*(xmax-xmin)*1./bins1, df1)
+        a.append(a_i)
+        
+    h = plt.hist(Delta1, weights=np.ones_like(Delta1)*1./Delta1.shape[0], 
+                 alpha=0.5, color='orange',
+                 range=(xmin, xmax), bins=bins)
+    chi_sq1 = np.sum((h[0]-a)**2*1./a)*Delta1.shape[0]
+    pval_1  = 1.-chi2.cdf(chi_sq1, bins1-1)
+    plt.hist(Delta1, weights=np.ones_like(Delta1)*1./Delta1.shape[0], 
+             color='orange', histtype='step', lw=2, label='p-value: %s'%(str(np.around(pval_1, 4))),
+             range=(xmin, xmax), bins=bins)
+    plt.hist(xrv, weights=np.ones_like(xrv)*1./xrv.shape[0],
+             color='dodgerblue', histtype='step',
+             label=r'$\chi^2(%s)$ pdf'%(str(df)),
+             range=(xmin, xmax), bins=bins, lw=2,
+            )
+    
+    plt.errorbar(x, h[0], yerr=np.sqrt(h[0])*1./np.sqrt(len(Delta1)), lw=1.5, color='darkorange', ls='none', marker='s')
+    plt.xlabel(r'$\Delta_{1}$', fontsize=16)
+    plt.legend(fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    
+    # -Delta2 hist
+    plt.subplot(1, 2, 2)
+    xmin = np.min(-Delta2)
+    xmax = np.max(-Delta2)
+    if xmax<5: xmax = 5
+    bins = bins2
+    df   = df2
+    rv   = chi2(df)
+    x    = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
+    
+    # expected counts
+    a = []
+    for i in range(bins2):
+        a_i = chi2.cdf(xmin+(i+1)*(xmax-xmin)*1./bins2, df2) - chi2.cdf(xmin+i*(xmax-xmin)*1./bins2, df2)
+        a.append(a_i)
+    h = plt.hist(-Delta2, weights=np.ones_like(Delta2)*1./Delta2.shape[0], 
+                 alpha=0.5, color='orange',
+                 range=(xmin, xmax), bins=bins)
+    chi_sq2 = np.sum((h[0]-a)**2*1./a)*Delta2.shape[0]
+    pval_2  = 1.-chi2.cdf(chi_sq2, bins2-1)
+    plt.hist(-Delta2, weights=np.ones_like(Delta2)*1./Delta2.shape[0], 
+             color='orange', histtype='step', lw=2, label='p-value: %s'%(str(np.around(pval_2, 4))),
+             range=(xmin, xmax), bins=bins)
+    plt.errorbar(x, h[0], yerr=np.sqrt(h[0])*1./np.sqrt(len(Delta2)), lw=1.5, color='darkorange', ls='none', marker='s')
+    plt.hist(xrv, weights=np.ones_like(xrv)*1./xrv.shape[0],
+             color='dodgerblue', histtype='step',
+             label=r'$\chi^2(%s)$ pdf'%(str(df)),
+             range=(xmin, xmax), bins=bins, lw=2,
+            )
+    
+    plt.xlabel(r'$-\Delta_{2}$', fontsize=16)
+    plt.legend(fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    if verbose:
+      print('DELTA 1: dof %i, test %s, pval %s'%(bins1-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
+      print('DELTA 1: dof %i, test %s, pval %s'%(bins2-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
+    if plot:
+			plt.show()
+   	plt.close()
+   	return pval_1, pval_2
+	
+  ###########################################################################################
+	def correlation_plots(t, Delta, Delta1, Delta2, nubest, nu0, scale_REF, scale_star, sigma):
+    plt.subplots(2, 2, figsize=(15, 15))
+    plt.subplot(2, 2, 1)
+    plt.scatter(t, Delta, label='Correlation', s=7)
+    plt.xlabel('t(D)', fontsize=16)
+    plt.ylabel(r'$\Delta_{1+2}$', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    plt.legend(fontsize=14)
+
+    plt.subplot(2, 2, 2)
+    plt.scatter(t, Delta1, label=r'$\Delta_{1}$', s=7)
+    plt.scatter(t, Delta2, label=r'$\Delta_{2}$', s=7)
+    plt.xlabel('t(D)', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    plt.legend(fontsize=14)
+
+    plt.subplot(2, 2, 3)
+    plt.scatter(Delta1, Delta2, label='Correlation', s=7)
+    plt.xlabel(r'$\Delta_{1}$', fontsize=16)
+    plt.ylabel(r'$\Delta_{2}$', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    plt.legend(fontsize=14)
+    
+    plt.subplot(2, 2, 4)
+    plt.scatter(nubest, nu0, label='Correlation', s=7)
+    plt.xlabel(r'$\nu$ best', fontsize=16)
+    plt.ylabel(r'$\nu_{0}$', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    plt.legend(fontsize=14)
+    plt.show()
+    plt.close()
+    return
+	
+	###################################################################
+	def nu_hist(nubest, mean, scale_REF, scale_star, sigma, plot=True):
+    plt.subplots(1, 2, figsize=(15, 5))
+    # nubest hist
+		plt.subplot(1, 2, 2)
+    plt.hist(nubest, density=True, alpha=0.5, color='darkorange',
+             label='Median: %s, std: %s'%(str(np.around(np.median(nubest), 3)), str(np.around(np.std(nubest), 3))))
+    plt.hist(nubest, density=True, color='darkorange', histtype='step', lw=2)
+    plt.xlabel(r'$e^{\nu_{best}}$', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    plt.legend(fontsize=14)
+    
+		#mean hist
+    plt.subplot(1, 2, 1)
+    plt.hist(mean, density=True, alpha=0.5, color='darkorange',
+             label='Median: %s, std: %s'%(str(np.around(np.median(mean), 3)), str(np.around(np.std(mean), 3))))
+    plt.hist(mean, density=True, color='darkorange', histtype='step', lw=2)
+    plt.xlabel(r'$\nu$ sample mean', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(scale_REF, 3)),str(np.around(scale_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    plt.legend(fontsize=14)
+    plt.show()
+    plt.close()
+    return
+	
+	##########################################################################
+	def t_hist(t, t_corrected, Delta, Delta1, Delta2, nubest, scale_REF, scale_star, sigma,
+             bins1=10, bins2=10, bins3=10, bins4=10, xmin2=0, xmax2=30, xmin3=0, xmax3=30, xmin4=0, xmax4=30, df=10, n=7,
+             plot=True, verbose=False):
+    
+    plt.subplots(2, 2, figsize=(15, 15))
+    plt.subplot(2, 2, 1)
+    xmin = np.min(-Delta)-0.1
+    xmax = np.max(-Delta)+0.1
+    bins = bins1
+    x = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
+    plt.hist(-Delta, weights=np.ones_like(Delta)*1./Delta.shape[0], 
+             alpha=0.5, color='orange',
+             range=(xmin, xmax), bins=bins,
+             label='Median: %s, std: %s'%(str(np.around(-np.median(Delta), 3)), str(np.around(np.std(Delta), 3)))
+						)
+    h = plt.hist(-Delta, weights=np.ones_like(Delta)*1./Delta.shape[0], 
+                 color='orange', histtype='step', lw=2,
+                 range=(xmin, xmax), bins=bins
+								)
+    plt.errorbar(x, h[0], yerr=h[0]*1./np.sqrt(len(Delta)*(xmax-xmin)*1./bins), lw=1.5, color='darkorange', ls='none', marker='s')
+    plt.xlabel(r'-($\Delta_{1}+\Delta_{2}$)', fontsize=16)
+    plt.legend(fontsize=14)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(p_scale_REF, 3)),str(np.around(p_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    #_________________________________________________________________________________________
+    
+    plt.subplot(2, 2, 2)
+    xmin = xmin2
+    xmax = xmax2
+    bins = bins2
+    x    = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, 10*bins)
+    rv   = chi2(df)
+    plt.plot(x, rv.pdf(x)*(xmax-xmin)*1./bins, 'k-', lw=2, color='red', ls='--',
+             label=r'$\chi^2$(%s) pdf'%(str(df)))
+    
+    x = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
+    # expected counts
+    a = []
+    for i in range(bins):
+        a_i = chi2.cdf(xmin+(i+1)*(xmax-xmin)*1./bins3, df3) - chi2.cdf(xmin+i*(xmax-xmin)*1./bins3, df3)
+        a.append(a_i)
+    h = plt.hist(t, alpha=0.5, weights=np.ones_like(t)*1./t.shape[0],
+                 range=(xmin, xmax), bins=bins)
+    chi_sq1 = np.sum((h[0][:n]-a[:n])**2*1./a[:n])*t.shape[0]
+    pval_1  = 1.-chi2.cdf(chi_sq1, n-1)
+    plt.hist(t, alpha=0.99, weights=np.ones_like(t)*1./t.shape[0],
+             range=(xmin, xmax), bins=bins, histtype='step', lw=3, color='dodgerblue', 
+             label='NN output SM(%s)\n p-value: %s'%(str(np.around(p_scale_REF, 3)), str(np.around(pval_1, 4))))
+    
+    h = plt.hist(t_corrected, alpha=0., weights=np.ones_like(t)*1./t.shape[0],
+               range=(xmin, xmax), bins=bins)
+    chi_sq2 = np.sum((h[0][:n]-a[:n])**2*1./a[:n])*t_corrected.shape[0]
+    pval_2  = 1.-chi2.cdf(chi_sq2, n-1)
+    plt.hist(t_corrected, alpha=0.99, weights=np.ones_like(t)*1./t.shape[0],
+               range=(xmin, xmax), bins=bins, color='darkorange',
+               label=r'NN output SM(%s) - $\Delta$'%(str(np.around(p_scale_REF, 3)))+'\n p-value: %s'%(str(np.around(pval_2, 4))), histtype='step', lw=3)
+    
+    plt.errorbar(x, h[0], yerr=np.sqrt(h[0])*1./np.sqrt(len(t)), lw=1.5, color='darkorange', ls='none', marker='s')
+    plt.legend(fontsize=14)
+    plt.xlabel('t(D)', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(p_scale_REF, 3)),str(np.around(p_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+		if verbose:
+    	print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
+    	print('tc: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
+    #______________________________________________________________________________________________
+    
+    plt.subplot(2, 2, 3)
+    xmin = xmin3
+    xmax = xmax3
+    bins = bins3
+    x    = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, 10*bins)
+    rv   = chi2(df)
+
+    plt.plot(x, rv.pdf(x)*(xmax-xmin)*1./bins, 'k-', lw=2, color='red', ls='--',
+             label=r'$\chi^2$(%s) pdf'%(str(df)))
+    
+    x = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
+    
+		# expected counts
+    a = []
+    for i in range(bins3):
+        a_i = chi2.cdf(xmin+(i+1)*(xmax-xmin)*1./bins3, df3) - chi2.cdf(xmin+i*(xmax-xmin)*1./bins3, df3)
+        a.append(a_i)
+    h = plt.hist(t, alpha=0.5, weights=np.ones_like(t)*1./t.shape[0],
+                 range=(xmin, xmax), bins=bins)
+    chi_sq1 = np.sum((h[0][:n]-a[:n])**2*1./a[:n])*t.shape[0]
+    pval_1  = 1.-chi2.cdf(chi_sq1, n-1)
+    plt.hist(t, alpha=0.99, weights=np.ones_like(t)*1./t.shape[0],
+             range=(xmin, xmax), bins=bins, histtype='step', lw=3, color='dodgerblue', 
+             label='NN output SM(%s)\n p-value: %s'%(str(np.around(p_scale_REF, 3)), str(np.around(pval_1, 4))))
+    
+    h = plt.hist(t-Delta1, alpha=0., weights=np.ones_like(t)*1./t.shape[0],
+                 range=(xmin, xmax), bins=bins)
+    chi_sq2 = np.sum((h[0][:n]-a[:n])**2*1./a[:n])*t_corrected.shape[0]
+    pval_2  = 1.-chi2.cdf(chi_sq2, n-1)
+    plt.hist(t-Delta1, alpha=0.99, weights=np.ones_like(t)*1./t.shape[0],
+             range=(xmin, xmax), bins=bins, color='darkorange',
+             label=r'NN output SM(%s) - $\Delta_1$'%(str(np.around(p_scale_REF, 3)))+'\n p-value: %s'%(str(np.around(pval_2, 4))), histtype='step', lw=3)
+    
+    plt.errorbar(x, h[0], yerr=np.sqrt(h[0])*1./np.sqrt(len(t)), lw=1.5, color='darkorange', ls='none', marker='s')
+		plt.legend(fontsize=14)
+    plt.xlabel('t(D)', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(p_scale_REF, 3)),str(np.around(p_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+		
+		if verbose:
+     print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
+     print('tc1: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
+    #______________________________________________________________________________________________
+    
+    plt.subplot(2, 2, 4)
+    xmin = xmin4
+    xmax = xmax4
+    bins = bins3
+    x    = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, 10*bins)
+    rv   = chi2(df)
+    plt.plot(x, rv.pdf(x)*(xmax-xmin)*1./bins, 'k-', lw=2, color='red', ls='--',
+             label=r'$\chi^2$(%s) pdf'%(str(df)))
+    
+    x = np.linspace(xmin+(xmax-xmin)*0.5/bins, xmax-(xmax-xmin)*0.5/bins, bins)
+		
+		# expected counts
+    a = []
+    for i in range(bins3):
+        a_i = chi2.cdf(xmin+(i+1)*(xmax-xmin)*1./bins3, df3) - chi2.cdf(xmin+i*(xmax-xmin)*1./bins3, df3)
+        a.append(a_i)
+    h = plt.hist(t, alpha=0.5, weights=np.ones_like(t)*1./t.shape[0],
+                 range=(xmin, xmax), bins=bins)
+    chi_sq1 = np.sum((h[0][:n]-a[:n])**2*1./a[:n])*t.shape[0]
+    pval_1  = 1.-chi2.cdf(chi_sq1, n-1)
+    plt.hist(t, alpha=0.99, weights=np.ones_like(t)*1./t.shape[0],
+             range=(xmin, xmax), bins=bins, histtype='step', lw=3, color='dodgerblue', 
+             label='NN output SM(%s)\n p-value: %s'%(str(np.around(p_scale_REF, 3)), str(np.around(pval_1, 4))))
+    
+    h = plt.hist(t-Delta2, alpha=0., weights=np.ones_like(t)*1./t.shape[0],
+                 range=(xmin, xmax), bins=bins)
+    chi_sq2 = np.sum((h[0][:n]-a[:n])**2*1./a[:n])*t_corrected.shape[0]
+    pval_2  = 1.-chi2.cdf(chi_sq2, n-1)
+    plt.hist(t-Delta2, alpha=0.99, weights=np.ones_like(t)*1./t.shape[0],
+             range=(xmin, xmax), bins=bins, color='darkorange',
+             label=r'NN output SM(%s) - $\Delta_2$'%(str(np.around(p_scale_REF, 3)))+'\n p-value: %s'%(str(np.around(pval_2, 4))), histtype='step', lw=3)
+    
+    plt.errorbar(x, h[0], yerr=np.sqrt(h[0])*1./np.sqrt(len(t)), lw=1.5, color='darkorange', ls='none', marker='s')
+    plt.legend(fontsize=14)
+    plt.xlabel('t(D)', fontsize=16)
+    plt.title(r'$\log(\nu_R)=$%s, $\log(\nu^*)=$%s $\sigma$=%s'%(str(np.around(p_scale_REF, 3)),str(np.around(p_star, 3)), str(np.around(sigma, 4))), 
+              fontsize=16)
+    if verbise:
+		 print('t0: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq1, 2)), str(np.around(pval_1, 4))))
+     print('tc2: dof %i, test %s, pval %s'%(n-1, str(np.around(chi_sq2, 2)), str(np.around(pval_2, 4))))
+    #______________________________________________________________________________________
+		if plot:
+        plt.show()
+    plt.close()
+    return pval_1, pval_2
+  
