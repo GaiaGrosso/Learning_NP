@@ -1,2 +1,2 @@
 # Learning_NP
-New PHysics Learning
+Shared repository for the project "New PHysics Learning"
