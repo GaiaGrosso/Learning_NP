@@ -1,4 +1,4 @@
-# Learning_NP
+# Learning Multivariate New Physics
 
 In this folder you will find the code to replicate Section 4 and 5 of "Learning Multivariate New Physics." (D'Agnolo R. T., Grosso G., Pierini M., Wulzer A., & Zanetti M., 2019, arXiv preprint arXiv:1912.12155).
 
