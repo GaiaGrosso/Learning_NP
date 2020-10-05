@@ -21,7 +21,7 @@ How to run toys using condor in lxplus.cern.ch
 			-t [number_toys]
 example:
 
-	python [$HOME]/run_z_5D_toys.py -p [$HOME]/  -i /eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_300GeV_13TeV/ -o ./ -t 100
+	python [$HOME]/run_z_5D_toys.py -p [$HOME]/NPL_train_Zprime.py  -i /eos/project/d/dshep/BSM_Detection/Zprime_lepFilter_300GeV_13TeV -o ./out_folder -t 100
 
 note:
 paths to the repositories for Zprime events [input_path_Zprime_folder]:
