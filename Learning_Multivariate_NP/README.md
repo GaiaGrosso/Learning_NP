@@ -29,4 +29,4 @@ For each event 6 features are stored: PT1, PT2, ETA1, ETA2, DELTA_PHI, MASS.
 
 ### Instruction to run the code on condor:
 
-The instructions are in the txt file
+The instructions are in the txt file Run_jobs_instructions.txt
