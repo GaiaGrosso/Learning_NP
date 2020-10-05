@@ -6,7 +6,6 @@ import math
 import time
 import matplotlib.pyplot as plt
 import os
-import getpass
 
 def collect_t(DIR_IN, DIR_OUT='None'):
     '''
@@ -24,26 +23,22 @@ def collect_t(DIR_IN, DIR_OUT='None'):
     files_id = np.array([])
     FILE_TITLE=''
     for fileIN in glob.glob("%s*_t.txt" %DIR_IN):
-        #print('prova')
-        #print(fileIN)
         f = open(fileIN)
         lines = f.readlines()
         file_id=  fileIN.split('/')[-1]
         FILE_TITLE = fileIN.split('/')[-2]
         file_id = file_id.replace('_t.txt', '')
         f.close()
-        #print(file_id)
         if len(lines)==0:
             continue
         t = float(lines[0])
-        #print(file_id)
         if(np.isnan(np.array([t]))): 
             continue 
-        #print(t)
         tvalues  = np.append(tvalues, t)
         files_id = np.append(files_id, file_id)
         
     files_id=np.array(files_id, dtype=dt)
+    
     # save tvalues in a h5 file
     if DIR_OUT !='None':
         f = h5py.File(DIR_OUT+ FILE_TITLE+'_tvalues.h5', 'w')
