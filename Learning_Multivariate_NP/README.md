@@ -27,3 +27,6 @@ The data are stored in h5 files on the following repositories (a Cern account is
 ```
 For each event 6 features are stored: PT1, PT2, ETA1, ETA2, DELTA_PHI, MASS.
 
+### Instruction to run the code on condor:
+
+The instructions are in the txt file
