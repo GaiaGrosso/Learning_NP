@@ -29,7 +29,7 @@ For each event 6 features are stored: PT1, PT2, ETA1, ETA2, DELTA_PHI, MASS.
 
 ### Instruction to run the code:
 The main files to run the training are:
-• NPL_train_Zprime.py for Zprime-like signals or SM-like data (when the numebr of signal events is set to 0). 
+##### NPL_train_Zprime.py for Zprime-like signals or SM-like data (when the numebr of signal events is set to 0). 
 
   Arguments:
   
@@ -39,7 +39,7 @@ The main files to run the training are:
     
 - [3]: signal events folder (ex: /eos/project/d/dshep/BSM_Detection/DiLepton_Zprime300)
     
-• NPL_train_EFT.py for EFT-like signals.\\
+##### NPL_train_EFT.py for EFT-like signals.\\
 
   Arguments:
   
