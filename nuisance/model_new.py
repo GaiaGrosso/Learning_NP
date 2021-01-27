@@ -126,7 +126,7 @@ def NPLLoss_New(true, pred):
     w   = true[1] # shape (batchsize,       )
     Lbinned = torch.sum(oi * torch.log(ei/eiR), 1)
     Laux    = 0.5*(nu-nuR)**2 # Gaussian
-    return torch.sum((1-y)*w*(torch.exp(f+Lbinned)-1) - y*w*(f+Lbinned)) + torch.sum(Laux)
+    return torch.sum((1-y)*w*(torch.exp(f+Lbinned)-1) - y*w*(f+Lbinned)) - torch.sum(Laux)
 
 def Read_FitBins(filename):
     '''
