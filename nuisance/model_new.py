@@ -95,25 +95,29 @@ class ExpLayer(nn.Module):
         return x # e_j(nu_1,..., nu_i) # [B x Nbins]
     
 class NewModel(nn.Module):
-    def __init__(self, n_nuisance, edgebinlist, Mmatrix, Qmatrix, NUmatrix, architecture):
+    def __init__(self, n_nuisance, edgebinlist, Mmatrix, Qmatrix, NUmatrix, NU0matrix, SIGMAmatrix, architecture):
         super(NewModel, self).__init__()
         self.oi  = BinStepLayer(edgebinlist)
         self.ei  = ExpLayer(n_nuisance, edgebinlist, Mmatrix, Qmatrix)
         self.eiR = ExpLayer(n_nuisance, edgebinlist, Mmatrix, Qmatrix)
         self.nu  = Variable(NUmatrix, requires_grad=True)
         self.nuR = Variable(NUmatrix, requires_grad=False)
+        self.nu0 = Variable(NU0matrix, requires_grad=False)
+        self.sig = Variable(SIGMAmatrix, requires_grad=False)
         self.f   = BSM(architecture)
         
     def forward(self, x):
         out_f   = self.f(x)
-        xbinned = x # in multidimensioal cases choose here which variable to use for the binned likelihood (ex: xbinned = x[:, 0])
-        out_oi  = self.oi(xbinned)
+        pt      = x
+        out_oi  = self.oi(pt)
         nu      = torch.squeeze(self.nu)
         nuR     = torch.squeeze(self.nuR)
+        nu0     = torch.squeeze(self.nu0)
+        sigma   = torch.squeeze(self.sig)
         out_ei  = self.ei(self.nu.t())
         out_eiR = self.eiR(self.nu.t())
-        return [out_oi, out_ei, out_eiR, out_f, nu, nuR]
-
+        return [out_oi, out_ei, out_eiR, out_f, nu, nuR, nu0, sigma]
+    
 def NPLLoss_New(true, pred):
     oi  = pred[0] # shape (bathcsize, n_bins)
     ei  = pred[1] # shape (bathcsize, n_bins)
@@ -121,10 +125,12 @@ def NPLLoss_New(true, pred):
     f   = pred[3] # shape (batchsize,       )
     nu  = pred[4] # shape (n_nuisance,      )
     nuR = pred[5] # shape (n_nuisance,      )
+    nu0 = pred[6] # shape (n_nuisance,      )
+    sig = pred[7] # shape (n_nuisance,      )
     y   = true[0] # shape (batchsize,       )
     w   = true[1] # shape (batchsize,       )
     Lbinned = torch.sum(oi * torch.log(ei/eiR), 1)
-    Laux    = 0.5*(nu-nuR)**2 # Gaussian
+    Laux    = -0.5*((nu-nu0)**2 - (nuR-nu0)**2)/sig**2 # Gaussian
     return torch.sum((1-y)*w*(torch.exp(f+Lbinned)-1) - y*w*(f+Lbinned)) - torch.sum(Laux)
 
 def Read_FitBins(filename):
@@ -159,13 +165,18 @@ w    = torch.from_numpy(w).double()
 # PARAMETERS ##############
 q_SCALE, m_SCALE, c_SCALE, bins, nu_fitSCALE = Read_FitBins('/eos/user/g/ggrosso/PhD/BSM/Sistematiche/Expo1D/Expo1D_BinFitSCALE.h5')
 q_NORM,  m_NORM,  c_NORM,  bins, nu_fitNORM  = Read_FitBins('/eos/user/g/ggrosso/PhD/BSM/Sistematiche/Expo1D/Expo1D_BinFitNORM.h5')
-Mmatrix  = torch.from_numpy(np.concatenate((m_SCALE.reshape(1,-1), m_NORM.reshape(1,-1)), axis=0)).double()
-Qmatrix  = torch.from_numpy(np.concatenate((q_SCALE.reshape(1,-1), q_NORM.reshape(1,-1)), axis=0)).double()
-NUmatrix = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
+Mmatrix     = torch.from_numpy(np.concatenate((m_SCALE.reshape(1,-1), m_NORM.reshape(1,-1)), axis=0)).double()
+Qmatrix     = torch.from_numpy(np.concatenate((q_SCALE.reshape(1,-1), q_NORM.reshape(1,-1)), axis=0)).double()
+NUmatrix    = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
+NU0matrix   = torch.from_numpy(np.array([[np.random.normal(loc=1.05, scale=0.05,size=1)[0], np.random.normal(loc=1., scale=0.05,size=1)[0]]]))
+SIGMAmatrix = torch.from_numpy(np.array([[0.05, 0.05]]))
 
 # MODEL ###################
 BSMarchitecture = [1, 4, 1]
-model     = NewModel(n_nuisance=2, edgebinlist=bins, Mmatrix=Mmatrix, Qmatrix=Qmatrix, NUmatrix=NUmatrix, architecture=BSMarchitecture).double()
+model     = NewModel(n_nuisance=2, edgebinlist=bins, 
+                     Mmatrix=Mmatrix, Qmatrix=Qmatrix, 
+                     NUmatrix=NUmatrix, NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
+                     architecture=architecture).double()
 loss      = NPLLoss_New
 clipper   = WeightClipping(wc = 8.)
 trainpars = [{'params': model._modules['f'].parameters()}, {'params': model.nu}]# {'params': model._modules['nu'].parameters()}]
