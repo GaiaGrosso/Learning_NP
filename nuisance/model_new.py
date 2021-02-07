@@ -41,7 +41,7 @@ class BinStepLayer(nn.Module):
                     self.layer1.weight[2*i-1, 0] = self.weight
                     self.layer1.bias[2*i-1]      = -1.*self.weight*self.edgebinlist[i]
                     self.layer1.weight[2*i, 0]   = self.weight
-                    self.layer1.bias[2*i]        = -1.*self.weight*self.edgebinlist[i+1]
+                    self.layer1.bias[2*i]        = -1.*self.weight*self.edgebinlist[i]
                     self.layer2.weight[i, 2*i-1] =  1.
                     self.layer2.weight[i-1, 2*i] = -1.
                     
@@ -95,13 +95,13 @@ class ExpLayer(nn.Module):
         return x # e_j(nu_1,..., nu_i) # [B x Nbins]
     
 class NewModel(nn.Module):
-    def __init__(self, n_nuisance, edgebinlist, Mmatrix, Qmatrix, NUmatrix, NU0matrix, SIGMAmatrix, architecture):
+    def __init__(self, n_nuisance, edgebinlist, Mmatrix, Qmatrix, NUmatrix, NURmatrix, NU0matrix, SIGMAmatrix, architecture):
         super(NewModel, self).__init__()
         self.oi  = BinStepLayer(edgebinlist)
         self.ei  = ExpLayer(n_nuisance, edgebinlist, Mmatrix, Qmatrix)
         self.eiR = ExpLayer(n_nuisance, edgebinlist, Mmatrix, Qmatrix)
-        self.nu  = Variable(NUmatrix, requires_grad=True)
-        self.nuR = Variable(NUmatrix, requires_grad=False)
+        self.nu  = Variable(NUmatrix,  requires_grad=True)
+        self.nuR = Variable(NURmatrix, requires_grad=False)
         self.nu0 = Variable(NU0matrix, requires_grad=False)
         self.sig = Variable(SIGMAmatrix, requires_grad=False)
         self.f   = BSM(architecture)
@@ -115,7 +115,7 @@ class NewModel(nn.Module):
         nu0     = torch.squeeze(self.nu0)
         sigma   = torch.squeeze(self.sig)
         out_ei  = self.ei(self.nu.t())
-        out_eiR = self.eiR(self.nu.t())
+        out_eiR = self.eiR(self.nuR.t())
         return [out_oi, out_ei, out_eiR, out_f, nu, nuR, nu0, sigma]
     
 def NPLLoss_New(true, pred):
@@ -168,6 +168,7 @@ q_NORM,  m_NORM,  c_NORM,  bins, nu_fitNORM  = Read_FitBins('/eos/user/g/ggrosso
 Mmatrix     = torch.from_numpy(np.concatenate((m_SCALE.reshape(1,-1), m_NORM.reshape(1,-1)), axis=0)).double()
 Qmatrix     = torch.from_numpy(np.concatenate((q_SCALE.reshape(1,-1), q_NORM.reshape(1,-1)), axis=0)).double()
 NUmatrix    = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
+NURmatrix   = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
 NU0matrix   = torch.from_numpy(np.array([[np.random.normal(loc=1.05, scale=0.05,size=1)[0], np.random.normal(loc=1., scale=0.05,size=1)[0]]]))
 SIGMAmatrix = torch.from_numpy(np.array([[0.05, 0.05]]))
 
@@ -175,7 +176,8 @@ SIGMAmatrix = torch.from_numpy(np.array([[0.05, 0.05]]))
 BSMarchitecture = [1, 4, 1]
 model     = NewModel(n_nuisance=2, edgebinlist=bins, 
                      Mmatrix=Mmatrix, Qmatrix=Qmatrix, 
-                     NUmatrix=NUmatrix, NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
+                     NUmatrix=NUmatrix, NURmatrix=NURmatrix,
+                     NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
                      architecture=architecture).double()
 loss      = NPLLoss_New
 clipper   = WeightClipping(wc = 8.)
