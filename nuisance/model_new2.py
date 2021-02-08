@@ -5,14 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-class WeightClipping(object):
-    def __init__(self, wc=1):
-        self.wc = wc
-    def __call__(self, module):
-        # filter the variables to get the ones you want
-        if hasattr(module, 'weight'):
-            w = module.weight
-            w = torch.le(w, 0)*torch.max(w, -1*torch.ones_like(w)*self.wc)+ torch.ge(w, 0)*torch.min(w, torch.ones_like(w)*self.wc)
+'''
+Quadratic approximation for nuisance binwise fit
+'''
 
 class BinStepLayer(nn.Module):
     def __init__(self, edgebinlist):
@@ -41,7 +36,7 @@ class BinStepLayer(nn.Module):
                     self.layer1.weight[2*i-1, 0] = self.weight
                     self.layer1.bias[2*i-1]      = -1.*self.weight*self.edgebinlist[i]
                     self.layer1.weight[2*i, 0]   = self.weight
-                    self.layer1.bias[2*i]        = -1.*self.weight*self.edgebinlist[i+1]
+                    self.layer1.bias[2*i]        = -1.*self.weight*self.edgebinlist[i]
                     self.layer2.weight[i, 2*i-1] =  1.
                     self.layer2.weight[i-1, 2*i] = -1.
                     
@@ -56,18 +51,29 @@ class BinStepLayer(nn.Module):
         return x
 
 class BSM(nn.Module):
-    def __init__(self, architecture=[1, 4, 1]):
+    def __init__(self, architecture=[1, 4, 1], weight_clipping=1.):
         super(BSM, self).__init__()
+        self.wclip      = weight_clipping
         self.layers     = nn.ModuleList([nn.Linear(architecture[i], architecture[i+1]) for i in range(len(architecture)-2)])
         self.layer_out  = nn.Linear(architecture[-2], architecture[-1])
         self.activation = nn.Sigmoid()
 
     def forward(self, x):
         for i, layer in enumerate(self.layers):
-            x = self.activation(layer(x))    
+            x = self.activation(layer(x))
         x = self.layer_out(x)
         x = torch.squeeze(x)
-        return x  
+        return x
+
+    def WeightClipping(self):
+        with torch.no_grad():
+            for i, m in enumerate(self.layers):
+                m.weight.masked_scatter_(m.weight>self.wclip, nn.Parameter(torch.ones_like(m.weight)*self.wclip))
+                m.weight.masked_scatter_(m.weight<-self.wclip, nn.Parameter(torch.ones_like(m.weight)*-1*self.wclip))
+
+            self.layer_out.weight.masked_scatter_(self.layer_out.weight>self.wclip, nn.Parameter(torch.ones_like(self.layer_out.weight)*self.wclip))
+            self.layer_out.weight.masked_scatter_(self.layer_out.weight<-self.wclip, nn.Parameter(torch.ones_like(self.layer_out.weight)*-1*self.wclip))
+        return
 
 class QuadraticExpLayer(nn.Module):
     def __init__(self, A0matrix, A1matrix, A2matrix):
@@ -82,13 +88,13 @@ class QuadraticExpLayer(nn.Module):
         return e # e_j(nu_1,..., nu_i) # [1, nbins]
     
 class NewModel(nn.Module):
-    def __init__(self, edgebinlist, A0matrix, A1matrix, A2matrix, NUmatrix, NU0matrix, SIGMAmatrix, architecture):
+    def __init__(self, edgebinlist, A0matrix, A1matrix, A2matrix, NUmatrix, NURmatrix, NU0matrix, SIGMAmatrix, architecture):
         super(NewModel, self).__init__()
         self.oi  = BinStepLayer(edgebinlist)
         self.ei  = QuadraticExpLayer(A0matrix, A1matrix, A2matrix)
         self.eiR = QuadraticExpLayer(A0matrix, A1matrix, A2matrix)
-        self.nu  = Variable(NUmatrix, requires_grad=True)
-        self.nuR = Variable(NUmatrix, requires_grad=False)
+        self.nu  = Variable(NUmatrix,  requires_grad=True)
+        self.nuR = Variable(NURmatrix, requires_grad=False)
         self.nu0 = Variable(NU0matrix, requires_grad=False)
         self.sig = Variable(SIGMAmatrix, requires_grad=False)
         self.f   = BSM(architecture)
@@ -101,7 +107,7 @@ class NewModel(nn.Module):
         nu0     = torch.squeeze(self.nu0)
         sigma   = torch.squeeze(self.sig)
         out_ei  = self.ei(self.nu.t())
-        out_eiR = self.eiR(self.nu.t())
+        out_eiR = self.eiR(self.nuR.t())
         return [out_oi, out_ei, out_eiR, out_f, nu, nuR, nu0, sigma]
         
 def NPLLoss_New(true, pred):
@@ -157,17 +163,18 @@ A2matrix     = torch.from_numpy(np.concatenate((c_SCALE.reshape(1,-1), c_NORM.re
 A1matrix     = torch.from_numpy(np.concatenate((m_SCALE.reshape(1,-1), m_NORM.reshape(1,-1)), axis=0)).double()
 A0matrix     = torch.from_numpy(np.concatenate((q_SCALE.reshape(1,-1), q_NORM.reshape(1,-1)), axis=0)).double()
 NUmatrix     = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
+NURmatrix    = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
 NU0matrix    = torch.from_numpy(np.array([[np.random.normal(loc=1.05, scale=0.05,size=1)[0], np.random.normal(loc=1., scale=0.05,size=1)[0]]]))
 SIGMAmatrix  = torch.from_numpy(np.array([[0.05, 0.05]]))
 
 # MODEL ###################
 BSMarchitecture = [1, 4, 1]
+weight_clipping = 8
 model = NewModel(edgebinlist=bins, 
                  A0matrix=A0matrix, A1matrix=A1matrix,   A2matrix=A2matrix, 
-                 NUmatrix=NUmatrix, NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
-                 architecture=architecture).double()
+                 NUmatrix=NUmatrix, NURmatrix=NURmatrix, NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
+                 architecture=architecture, weight_clipping=weight_clipping).double()
 loss      = NPLLoss_New
-clipper   = WeightClipping(wc = 8.)
 trainpars = [{'params': model._modules['f'].parameters()}, {'params': model.nu}]
 optimizer = torch.optim.Adam(trainpars)
 
@@ -180,6 +187,6 @@ for epoch in range(epochs):
     loss_i   = loss([tgt, w], output_i)
     loss_i.backward()
     optimizer.step()
-    model._modules['f'].apply(clipper)
+    model._modules['f'].WeightClipping()
     if not epoch%patience:
         print('Epoch: %i, Loss: %f'%(epoch, loss_i.item()))
