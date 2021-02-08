@@ -56,18 +56,29 @@ class BinStepLayer(nn.Module):
         return x
 
 class BSM(nn.Module):
-    def __init__(self, architecture=[1, 4, 1]):
+    def __init__(self, architecture=[1, 4, 1], weight_clipping=1.):
         super(BSM, self).__init__()
+        self.wclip      = weight_clipping
         self.layers     = nn.ModuleList([nn.Linear(architecture[i], architecture[i+1]) for i in range(len(architecture)-2)])
         self.layer_out  = nn.Linear(architecture[-2], architecture[-1])
         self.activation = nn.Sigmoid()
 
     def forward(self, x):
         for i, layer in enumerate(self.layers):
-            x = self.activation(layer(x))    
+            x = self.activation(layer(x))
         x = self.layer_out(x)
         x = torch.squeeze(x)
-        return x  
+        return x
+
+    def WeightClipping(self):
+        with torch.no_grad():
+            for i, m in enumerate(self.layers):
+                m.weight.masked_scatter_(m.weight>self.wclip, nn.Parameter(torch.ones_like(m.weight)*self.wclip))
+                m.weight.masked_scatter_(m.weight<-self.wclip, nn.Parameter(torch.ones_like(m.weight)*-1*self.wclip))
+
+            self.layer_out.weight.masked_scatter_(self.layer_out.weight>self.wclip, nn.Parameter(torch.ones_like(self.layer_out.weight)*self.wclip))
+            self.layer_out.weight.masked_scatter_(self.layer_out.weight<-self.wclip, nn.Parameter(torch.ones_like(self.layer_out.weight)*-1*self.wclip))
+        return 
 
 class ExpLayer(nn.Module):
     def __init__(self, n_nuisance, edgebinlist, Mmatrix, Qmatrix):
@@ -108,8 +119,7 @@ class NewModel(nn.Module):
         
     def forward(self, x):
         out_f   = self.f(x)
-        pt      = x
-        out_oi  = self.oi(pt)
+        out_oi  = self.oi(x)
         nu      = torch.squeeze(self.nu)
         nuR     = torch.squeeze(self.nuR)
         nu0     = torch.squeeze(self.nu0)
@@ -169,18 +179,18 @@ Mmatrix     = torch.from_numpy(np.concatenate((m_SCALE.reshape(1,-1), m_NORM.res
 Qmatrix     = torch.from_numpy(np.concatenate((q_SCALE.reshape(1,-1), q_NORM.reshape(1,-1)), axis=0)).double()
 NUmatrix    = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
 NURmatrix   = torch.from_numpy(np.concatenate((nu_fitSCALE[5:6].reshape(1,-1), nu_fitNORM[5:6].reshape(1,-1)), axis=0)).double()
-NU0matrix   = torch.from_numpy(np.array([[np.random.normal(loc=1.05, scale=0.05,size=1)[0], np.random.normal(loc=1., scale=0.05,size=1)[0]]]))
-SIGMAmatrix = torch.from_numpy(np.array([[0.05, 0.05]]))
+NU0matrix   = torch.from_numpy(np.array([[np.random.normal(loc=1.05, scale=0.05,size=1)[0], np.random.normal(loc=1., scale=0.05,size=1)[0]]])).double()
+SIGMAmatrix = torch.from_numpy(np.array([[0.05, 0.05]])).double()
 
 # MODEL ###################
 BSMarchitecture = [1, 4, 1]
+weight_clipping = 8
 model     = NewModel(n_nuisance=2, edgebinlist=bins, 
                      Mmatrix=Mmatrix, Qmatrix=Qmatrix, 
                      NUmatrix=NUmatrix, NURmatrix=NURmatrix,
                      NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
-                     architecture=architecture).double()
+                     architecture=architecture, weight_clipping=weight_clipping).double()
 loss      = NPLLoss_New
-clipper   = WeightClipping(wc = 8.)
 trainpars = [{'params': model._modules['f'].parameters()}, {'params': model.nu}]# {'params': model._modules['nu'].parameters()}]
 optimizer = torch.optim.Adam(trainpars)
 
