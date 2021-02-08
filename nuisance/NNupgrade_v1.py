@@ -5,14 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-class WeightClipping(object):
-    def __init__(self, wc=1):
-        self.wc = wc
-    def __call__(self, module):
-        # filter the variables to get the ones you want
-        if hasattr(module, 'weight'):
-            w = module.weight
-            w = torch.le(w, 0)*torch.max(w, -1*torch.ones_like(w)*self.wc)+ torch.ge(w, 0)*torch.min(w, torch.ones_like(w)*self.wc)
+'''
+Quadratic approximation for nuisance binwise fit
+'''
 
 class BinStepLayer(nn.Module):
     def __init__(self, edgebinlist):
@@ -203,6 +198,6 @@ for epoch in range(epochs):
     loss_i   = loss([tgt, w], output_i)
     loss_i.backward()
     optimizer.step()
-    model._modules['f'].apply(clipper)
+    model._modules['f'].WeightClipping()
     if not epoch%patience:
         print('Epoch: %i, Loss: %f'%(epoch, loss_i.item()))
