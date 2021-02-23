@@ -11,7 +11,7 @@ from tensorflow.keras.layers import Dense, Input, Layer
 from tensorflow import Variable
 import numpy as np
 
-from Utils import *
+from NNUtils import *
 from SampleUtils import *
 #############################################                                                                                                                            
 seed = datetime.datetime.now().microsecond+datetime.datetime.now().second+datetime.datetime.now().minute
