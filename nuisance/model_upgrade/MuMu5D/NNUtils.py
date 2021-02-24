@@ -38,7 +38,7 @@ class BSMfinder(Layer):
 
 
 class BinStepLayer(Layer):
-    def __init__(self, input_shape, edgebinlist):
+    def __init__(self, input_shape, edgebinlist, means):
         super(BinStepLayer, self).__init__()
         self.edgebinlist = edgebinlist
         self.nbins       = self.edgebinlist.shape[0]-1
@@ -71,11 +71,13 @@ class BinStepLayer(Layer):
         self.w1 = Variable(initial_value=self.w1.transpose(), dtype="float32", trainable=False, name='w1' )
         self.w2 = Variable(initial_value=self.w2.transpose(), dtype="float32", trainable=False, name='w2' )
         self.b1 = Variable(initial_value=self.b1.transpose(), dtype="float32", trainable=False, name='b1' )
+        self.mean1 = Variable(initial_value=means[0], dtype="float32", trainable=False, name='mean1' )
+        self.mean2 = Variable(initial_value=means[1], dtype="float32", trainable=False, name='mean2' )
         self.build(input_shape)
 
     def call(self, x):
-        x1 = tf.matmul(x[:,0:1], self.w1) + self.b1
-        x2 = tf.matmul(x[:,1:2], self.w1) + self.b1
+        x1 = tf.matmul(x[:,0:1]*self.mean1, self.w1) + self.b1
+        x2 = tf.matmul(x[:,1:2]*self.mean2, self.w1) + self.b1
         x = keras.activations.relu(keras.backend.sign(x1+x2))
         x = tf.matmul(x, self.w2)
         return x
@@ -94,10 +96,10 @@ class LinearExpLayer(Layer):
         return x # e_j(nu_1,..., nu_i) # [B x Nbins]
 
 class BSMfinderUpgrade(Model):
-    def __init__(self, input_shape, edgebinlist, A1matrix, A0matrix, endcaps_barrel_r, NUmatrix, NURmatrix, NU0matrix, SIGMAmatrix, architecture, weight_clipping, name=N\
+    def __init__(self, input_shape, edgebinlist, means, A1matrix, A0matrix, endcaps_barrel_r, NUmatrix, NURmatrix, NU0matrix, SIGMAmatrix, architecture, weight_clipping, name=N\
 one, **kwargs):
         super().__init__(name=name, **kwargs)
-        self.oi  = BinStepLayer(input_shape, edgebinlist)
+        self.oi  = BinStepLayer(input_shape, edgebinlist, means)
         self.ei  = LinearExpLayer(input_shape, A0matrix, A1matrix, endcaps_barrel_r)
         self.eiR = LinearExpLayer(input_shape, A0matrix, A1matrix, endcaps_barrel_r)
         self.nu  = Variable(initial_value=NUmatrix,         dtype="float32", trainable=True,  name='nu')
