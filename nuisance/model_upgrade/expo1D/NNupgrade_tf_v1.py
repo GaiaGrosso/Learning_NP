@@ -104,7 +104,8 @@ print('architecture:')
 print(architecture)
 input_shape = (None, inputsize)
 model       = BSMfinderUpgrade(input_shape=input_shape,
-                               edgebinlist=bins, A1matrix=Mmatrix, A0matrix=Qmatrix,
+                               edgebinlist=bins, mean_ref, mean_ref,
+                               A1matrix=Mmatrix, A0matrix=Qmatrix,
                                NUmatrix=NUmatrix, NURmatrix=NURmatrix, NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
                                architecture=architecture, weight_clipping=weight_clipping)
 
