@@ -117,6 +117,8 @@ print('Finish training Toy '+toy)
 ################################################     
 # metrics                                                                                                                                           
 loss = np.array(hist.history['loss'])
+scale= np.array(hist.history['scale'])
+norm = np.array(hist.history['norm'])
 
 # test statistic                                                                                                                                   
 final_loss = loss[-1]
@@ -134,6 +136,8 @@ f           = h5py.File(log_history,"w")
 keepEpoch   = np.array(range(total_epochs))
 keepEpoch   = keepEpoch % patience == 0
 f.create_dataset('loss', data=loss[keepEpoch], compression='gzip')
+f.create_dataset('scale', data=scale[keepEpoch], compression='gzip')
+f.create_dataset('norm',  data=norm[keepEpoch],  compression='gzip')
 f.close()
 
 # save the model                                                                 
