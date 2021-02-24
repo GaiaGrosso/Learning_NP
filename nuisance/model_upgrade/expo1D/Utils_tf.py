@@ -36,7 +36,7 @@ class BSMfinder(Layer):
         return x
 
 class BinStepLayer(Layer):
-    def __init__(self, input_shape, edgebinlist):
+    def __init__(self, input_shape, edgebinlist, mean_ref):
         super(BinStepLayer, self).__init__()
         self.edgebinlist = edgebinlist
         self.nbins       = self.edgebinlist.shape[0]-1
@@ -44,6 +44,7 @@ class BinStepLayer(Layer):
         self.w2          = np.zeros((self.nbins, 2*self.nbins))
         self.b1          = np.zeros((2*self.nbins, 1))
         self.weight      = 100.
+        self.mean_ref    = mean_ref
         # fix the weights and biases                                                                                                                
         for i in range(self.nbins+1):
             if i < self.nbins:
@@ -70,7 +71,7 @@ class BinStepLayer(Layer):
         self.b1 = Variable(initial_value=self.b1.transpose(), dtype="float32", trainable=False, name='b1' )
         self.build(input_shape)
     def call(self, x):
-        x = tf.matmul(x, self.w1) + self.b1
+        x = tf.matmul(x*self.mean_ref, self.w1) + self.b1
         x = keras.activations.relu(keras.backend.sign(x))
         x = tf.matmul(x, self.w2)
         return x
@@ -87,11 +88,11 @@ class LinearExpLayer(Layer):
 
 
 class BSMfinderUpgrade(Model):
-    def __init__(self, input_shape, edgebinlist, A1matrix, A0matrix, NUmatrix, NURmatrix, NU0matrix, SIGMAmatrix, architecture, weight_clipping, na\
+    def __init__(self, input_shape, edgebinlist, mean_ref, A1matrix, A0matrix, NUmatrix, NURmatrix, NU0matrix, SIGMAmatrix, architecture, weight_clipping, na\
 me=None, **kwargs):
         super().__init__(name=name, **kwargs)
 
-        self.oi  = BinStepLayer(input_shape, edgebinlist)
+        self.oi  = BinStepLayer(input_shape, edgebinlist, mean_ref)
         self.ei  = LinearExpLayer(input_shape, A0matrix, A0matrix)
         self.eiR = LinearExpLayer(input_shape, A0matrix, A1matrix)
         self.nu  = Variable(initial_value=NUmatrix,    dtype="float32", trainable=True, name='nu')
