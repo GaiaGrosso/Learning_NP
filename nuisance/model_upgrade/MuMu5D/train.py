@@ -137,11 +137,15 @@ weights   = np.expand_dims(weights, axis=1)
 feature   = feature[:, :-1]
 target    = np.concatenate((target,weights), axis=1 )
 
-#standardize dataset ############################                                                                                                                         
+#standardize dataset ############################
+mean_list = []
+std_list  = []
 for j in range(feature.shape[1]):
     vec  = feature[:, j]
     mean = np.mean(vec)
     std  = np.std(vec)
+    mean_list.append(mean)
+    std_list.append(std)
     if np.min(vec) < 0:
         vec = vec- mean
         vec = vec *1./ std
@@ -164,11 +168,12 @@ NURmatrix    = np.array([[sb[ref_idx]],   [eb[ref_idx]] ])
 NU0matrix    = np.array([[sb0, eb0 ]])
 SIGMAmatrix  = np.array([[sigma_sb, sigma_eb ]])
 EB_ratio     = np.array([[endcaps_barrel_scale_r, endcaps_barrel_efficiency_r]])
+mean_pts     = np.array([ mean_list[0], mean_list[1] ])
 batch_size   = feature.shape[0]
 inputsize    = feature.shape[1]
 input_shape  = (None, inputsize)
 model        = BSMfinderUpgrade(input_shape=input_shape,
-                                edgebinlist=bins, endcaps_barrel_r=EB_ratio,
+                                edgebinlist=bins, endcaps_barrel_r=EB_ratio, means=mean_pts,
                                 A1matrix=Mmatrix, A0matrix=Qmatrix,
                                 NUmatrix=NUmatrix, NURmatrix=NURmatrix, NU0matrix=NU0matrix, SIGMAmatrix=SIGMAmatrix,
                                 architecture=layers, weight_clipping=wc)
