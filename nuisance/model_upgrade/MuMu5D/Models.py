@@ -55,7 +55,7 @@ class ParametricNet(Model):
 class NPLM(Model):
     def __init__(self, input_shape, NU, NUR, NU0, SIGMA, architecture=[1, 10, 1], weight_clipping=1., ParNet_weights=None, train_nu=True, train_BSM=True, name=None, **kwargs):
         super().__init__(name=name, **kwargs)
-        
+
 		architecturePar = ParNet_weights.split('layers', 1)[1]
 		architecturePar = architecturePar.split('_act', 1)[0]
 		architecturePar = architecturePar.split('_')
@@ -68,39 +68,39 @@ class NPLM(Model):
 		activationPar   = activationPar.split('_', 1)[0]
 		wcPar           = ParNet_weights.split('wclip', 1)[1]
 		wcPar           = float(wcPar.split('/', 1)[0])
-		self.Delta = ParametricNet(input_shapePar, architecturePar, wcPar, activationPar)
+		self.Delta = ParametricNet(input_shapePar, architecture=[architecturePar], weight_clipping=[wcPar], activationPar)
 		self.Delta.load_weights(ParNet_weights)
 		#don't want to train Delta                                                                                                                                               
 		for module in self.Delta.layers:
 			for layer in module.layers:
 				layer.trainable = False
 
-        self.nu   = Variable(initial_value=NU,         dtype="float32", trainable=train_nu,  name='nu')
-        self.nuR  = Variable(initial_value=NUR,        dtype="float32", trainable=False,     name='nuR')
-        self.nu0  = Variable(initial_value=NU0,        dtype="float32", trainable=False,     name='nu0')
-        self.sig  = Variable(initial_value=SIGMA,      dtype="float32", trainable=False,     name='sigma')
+        self.nu   = Variable(initial_value=NU,    dtype="float32", trainable=train_nu, name='nu')
+        self.nuR  = Variable(initial_value=NUR,   dtype="float32", trainable=False,    name='nuR')
+        self.nu0  = Variable(initial_value=NU0,   dtype="float32", trainable=False,    name='nu0')
+        self.sig  = Variable(initial_value=SIGMA, dtype="float32", trainable=False,    name='sigma')
         if train_BSM:
-            self.BSMfinder    = DNN(input_shape, architecture, weight_clipping)
+            self.BSMfinder = DNN(input_shape, architecture, weight_clipping)
         self.train_BSM = train_BSM
         self.build(input_shape)
 		
 	def call(self, x):
-        nu      = tf.squeeze(self.nu)
-        nuR     = tf.squeeze(self.nuR)
-        nu0     = tf.squeeze(self.nu0)
-        sigma   = tf.squeeze(self.sig)
+        nu     = tf.squeeze(self.nu)
+        nuR    = tf.squeeze(self.nuR)
+        nu0    = tf.squeeze(self.nu0)
+        sigma  = tf.squeeze(self.sig)
 		
-        Laux    = tf.reduce_sum(-0.5*((nu-nu0)**2 - (nuR-nu0)**2)/sigma**2 )
-        Laux    = Laux*tf.ones_like(x[:, 0:1])
+        Laux   = tf.reduce_sum(-0.5*((nu-nu0)**2 - (nuR-nu0)**2)/sigma**2 )
+        Laux   = Laux*tf.ones_like(x[:, 0:1])
 
-        Lratio  = 0
+        Lratio = 0
 		delta   = self.Delta.call(x)
 		Lratio  = tf.math.log((1+delta[:, 0:1]*nu[0]/sigma[0])**2  + (delta[:, 1:2]*nu[0]/sigma[0])**2) # scale
 		Lratio += tf.math.log((tf.ones_like(delta[:, 1:2])+nu[1])/(tf.ones_like(delta[:, 1:2])+nuR[1])) # norm
-        BSM     = tf.zeros_like(Laux)
+        BSM    = tf.zeros_like(Laux)
         if self.train_BSM:
             BSM = self.BSMfinder(x)
-        output  = tf.keras.layers.Concatenate(axis=1)([BSM+Lratio, Laux])
+        output = tf.keras.layers.Concatenate(axis=1)([BSM+Lratio, Laux])
         self.add_metric(tf.reduce_mean(Laux), aggregation='mean', name='Laux')
         self.add_metric(nu[0], aggregation='mean', name='scale_barrel')
         self.add_metric(nu[1], aggregation='mean', name='efficiency_barrel')
