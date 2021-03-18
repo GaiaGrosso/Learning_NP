@@ -85,3 +85,7 @@ def Apply_MuonEfficiency_Correction_ETAregion(weights, feature, muon_efficiency=
     weights_new  = weights*(np.ones_like(weights) + muon_efficiency*(np.abs(eta1)>=eta_min)*(np.abs(eta1)<eta_max))
     weights_new *= (np.ones_like(weights) + muon_efficiency*(np.abs(eta2)>=eta_min)*(np.abs(eta2)<eta_max))
     return weights_new
+
+def Apply_Efficiency_Correction_global(weights,  muon_efficiency=0):
+    weights_new  = weights*(1 + muon_efficiency)
+    return weights_new
