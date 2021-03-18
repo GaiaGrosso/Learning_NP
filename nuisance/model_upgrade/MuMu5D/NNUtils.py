@@ -20,10 +20,10 @@ class WeightClip(Constraint):
         return {'name': self.__class__.__name__,
                 'c': self.c}
 
-class BSMfinder(Layer):
-    def __init__(self,input_shape, architecture=[1, 4, 1], weight_clipping=1.0):
-        super(BSMfinder, self).__init__()
-        self.hidden_layers = [Dense(architecture[i+1], input_shape=(architecture[i],), activation='sigmoid',
+class BSMfinder(Model):
+    def __init__(self,input_shape, architecture=[1, 4, 1], weight_clipping=1.0, activation='sigmoid', name=None, **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.hidden_layers = [Dense(architecture[i+1], input_shape=(architecture[i],), activation=activation,
                                     kernel_constraint = WeightClip(weight_clipping)) for i in range(len(architecture)-2)]
         self.output_layer  = Dense(architecture[-1], input_shape=(architecture[-2],), activation='linear',
                                      kernel_constraint = WeightClip(weight_clipping))
