@@ -128,8 +128,7 @@ print(weights.shape)
 #Apply efficiency modifications #################                                                                                                                        \
                                                                                                                                                                           
 weights = weights *(target+(N_D*1./N_R)*(1-target))
-weights[target==1] = Apply_MuonEfficiency_Correction_ETAregion(weights[target==1], feature[target==1], muon_efficiency=efficiency_barrel, eta_min=0, eta_max=1.2)
-weights[target==1] = Apply_MuonEfficiency_Correction_ETAregion(weights[target==1], feature[target==1], muon_efficiency=efficiency_endcaps, eta_min=1.2, eta_max=2.4)
+weights[target==1] = Apply_Efficiency_Correction_global(weights[target==1],  muon_efficiency=efficiency_barrel)
 print(weights.shape)
 #remove mass from the inputs ####################                                                                                                                         
 target    = np.expand_dims(target, axis=1)
