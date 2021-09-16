@@ -117,4 +117,96 @@ class WeightClip(Constraint):
             self.nuR_n  = Variable(initial_value=NUR_N,        dtype="float32", trainable=False,     name='nuR_n')
             self.nu0_n  = Variable(initial_value=NU0_N,        dtype="float32", trainable=False,     name='nu0_n')
             self.sig_n  = Variable(initial_value=SIGMA_N,      dtype="float32", trainable=False,     name='sigma_n')
-			
+        if train_f: self.BSMfinder = BSMfinder(input_shape, BSMarchitecture, BSMweight_clipping)
+        if not train_f and correction=='':
+            logging.error("All modules are null. Please whether set train_f==True or correction != ''.")
+            exit()
+        self.train_f = train_f
+        self.correction = correction
+        self.build(input_shape)
+	
+    def call(self, x):
+        #tf.print('SigmaN', self.sig_n, 'SigmaS', self.sig_s, output_stream=sys.stdout)                                                                       
+        Laux = 0
+        # Auxiliary likelihood (gaussian prior)                                                                                                               
+        if self.correction == 'SHAPE':
+            Laux  = tf.reduce_sum(-0.5*((self.nu_n-self.nu0_n)**2 - (self.nuR_n-self.nu0_n)**2)/self.sig_n**2 )
+            Laux += tf.reduce_sum(-0.5*((self.nu_s-self.nu0_s)**2 - (self.nuR_s-self.nu0_s)**2)/self.sig_s**2 )
+        if self.correction == 'NORM':
+            Laux  = tf.reduce_sum(-0.5*((self.nu_n-self.nu0_n)**2 - (self.nuR_n-self.nu0_n)**2)/self.sig_n**2 )
+        Laux  = Laux*tf.ones_like(x[:, 0:1])
+
+        Lratio  = 0
+        # scale effects   
+        if self.correction == 'SHAPE':
+            for j in range(len(self.deltas_NN)):
+                NN = self.deltas_NN[j]
+                shape_std = self.deltas_std[j]
+                NN_out = NN.call(x)
+                for k in range(NN_out.shape[1]):
+                    Lratio += NN_out[:, k:k+1]*(self.nu_s/shape_std)**(k+1)
+            # global normalization effects                                                                                                                    
+            Lratio += tf.reduce_sum(tf.math.log(tf.exp(self.nu_n)/ tf.exp(self.nuR_n) ))
+            #print(Lratio)                                                                                                                                    
+        if self.correction == 'NORM':
+            # global normalization effects                                                                                                                   \
+                                                                                                                                                              
+            Lratio += tf.reduce_sum(tf.math.log(tf.exp(self.nu_n)/ tf.exp(self.nuR_n) ))
+
+        BSM     = tf.zeros_like(Laux)
+        if self.train_f:
+            BSM = self.BSMfinder(x)
+        output  = tf.keras.layers.Concatenate(axis=1)([BSM+Lratio, Laux])
+
+        #monitoring                                                                                                                                           
+        self.add_metric(tf.reduce_mean(Laux),  aggregation='mean', name='Laux')
+        self.add_metric(tf.reduce_sum(Lratio), aggregation='sum',  name='Lratio')
+        self.add_metric(tf.reduce_sum(BSM),    aggregation='sum',  name='BSM')
+        if self.correction == 'SHAPE':
+            for i in range(self.nu_s.shape[0]):
+                self.add_metric(self.nu_s[i], aggregation='mean', name='shape_%i'%(i))
+            self.add_metric(self.nu_n, aggregation='mean', name='norm_0')
+        if self.correction == 'NORM':
+            self.add_metric(self.nu_n, aggregation='mean', name='norm_0')
+        return output
+    
+class ParametricNet(Model):
+    '''                                                                                                                                                       
+    architectures: list of lists [a1, a2, ..., an], ai = [layer1, layer2, ..] n=degree                                                                        
+    weight_clippings: list of values; each weight clipping is associated to a model length(weight_clipping)=degree                                            
+    degree: polynomial degree of approximation                                                                                                                
+    '''
+    def __init__(self, input_shape, architectures=[[1, 10, 1]], weight_clippings=[None], activation='relu', degree=1,
+                 initial_model=[None], init_null=[False], train=[True], name="ParNet", **kwargs):
+        super().__init__(name=name, **kwargs)
+        if len(architectures)!=degree or len(weight_clippings)!=degree or len(initial_model)!=degree or len(init_null)!=degree or len(train)!=degree:
+            logging.error("Wrong argument legth! Check that 'architectures', 'weight_clippings', 'initial_model', 'init_null', 'train' have all legth equal t\
+o %i"%(degree))
+        self.a = []
+        for i in range(degree):
+            initializer = None
+            if init_null[i]:
+                initializer = initializers.Zeros()
+            self.a.append(BSMfinder(input_shape, architectures[i], weight_clippings[i], activation=activation, trainable=train[i], initializer=initializer))
+            if not initial_model[i] == None:
+                self.a[-1].load_weights(initial_model[i], by_name=True)
+	self.degree = degree
+        self.build(input_shape)
+
+    def call(self, x):
+        if self.degree==1:
+            return self.a[0](x)
+        else:
+            output = []
+            for i in range(self.degree):
+                output.append(self.a[i](x))
+            output  = tf.keras.layers.Concatenate(axis=1)(output)
+            return output
+
+        
+def NPLM_Imperfect_Loss(true, pred):
+    f   = pred[:, 0]
+    Laux= pred[:, 1]
+    y   = true[:, 0]
+    w   = true[:, 1]
+    return tf.reduce_sum((1-y)*w*(tf.exp(f)-1) - y*w*(f)) - tf.reduce_mean(Laux)
