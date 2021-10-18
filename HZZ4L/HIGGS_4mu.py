@@ -20,7 +20,6 @@ from tensorflow.keras.layers import Dense, Input, Layer
 from DATAutils import *
 from NNutils import *
 from PLOTutils import *
-
 ###########################################
 parser = argparse.ArgumentParser()    
 parser.add_argument('-j', '--jsonfile'  , type=str, help="json file", required=True)
@@ -33,11 +32,14 @@ print('Random seed:'+str(seed))
 with open(args.jsonfile, 'r') as jsonfile:
         config_json = json.load(jsonfile)
 
-columns_training = config_json["features"]
+columns_training = config_json["features"]#['ZZMass']
 
 N_Bkg   = config_json["N_Bkg"]
 N_D     = N_Bkg
-
+N_Sig   = config_json["N_Sig"]
+if not N_Sig:
+        print('Error! Null signal! please set N_Sig to a non zero value in the configuration dictionary!')
+        exit()
 #### Architecture: #########################
 BSM_architecture = config_json["BSMarchitecture"]
 BSM_wclip        = config_json["BSMweight_clipping"]
@@ -54,47 +56,45 @@ OUTPUT_FILE_ID = '/Toy5D_seed'+str(seed)+'_patience'+str(patience)
 if os.path.isfile("%s/%s_t.txt" %(OUTPUT_PATH, OUTPUT_FILE_ID)):
         exit()
 
-# nuisance values ###########################                                                                                                               
-correction       = config_json["correction"] # 'NORM', 'SHAPE', ''
+# nuisance values ###########################                                                                                                                                     
+correction       = config_json["correction"] # 'NORM', 'SHAPE', ''                                                                                                                
 
-# shape effects
+# shape effects                                                                                                                                                                  
 shape_sigma      = np.array(config_json["shape_nuisances_sigma"])
-shape_generation = np.array(config_json["shape_nuisances_data"]) # units of sigma
-shape_generation = shape_generation*shape_sigma # absolute vlaues
-shape_reference  = np.array(config_json["shape_nuisances_reference"]) # units of sigma 
-shape_reference  = shape_reference*shape_sigma # absolute vlaues
+shape_generation = np.array(config_json["shape_nuisances_data"]) # units of sigma                                                                                                
+shape_generation = shape_generation*shape_sigma # absolute vlaues                                                                                                                
+shape_reference  = np.array(config_json["shape_nuisances_reference"]) # units of sigma                                                                                           
+shape_reference  = shape_reference*shape_sigma # absolute vlaues                                                                                                                 
 shape_auxiliary  = []
 for i in range(len(shape_sigma)):
     if shape_sigma[i]:
         shape_auxiliary.append(np.random.normal(shape_generation[i], shape_sigma[i], size=(1,))[0])
-    else:
+else:
         shape_auxiliary.append(0)
 shape_auxiliary = np.array(shape_auxiliary)
 shape_dictionary_list = config_json["shape_dictionary_list"]
 
-# global normalization
+# global normalization                                                                                                                                                           
 norm_sigma      = config_json["norm_nuisances_sigma"]
-norm_generation = config_json["norm_nuisances_data"] # units of sigma                                                                                 
-norm_generation = norm_generation*norm_sigma # absolute vlaues
-norm_reference  = config_json["norm_nuisances_reference"] # units of sigma  
-norm_reference  = norm_reference*norm_sigma # absolute vlaues  
+norm_generation = config_json["norm_nuisances_data"] # units of sigma                                                                                                            
+norm_generation = norm_generation*norm_sigma # absolute vlaues                                                                                                                   
+norm_reference  = config_json["norm_nuisances_reference"] # units of sigma                                                                                                       
+norm_reference  = norm_reference*norm_sigma # absolute vlaues                                                                                                                     
 if norm_sigma:
         norm_auxiliary  = np.random.normal(norm_generation, norm_sigma, size=(1,))[0]
 else:
         norm_auxiliary = 0
 
-# cross section normalization
-csec_nuisances_data       = config_json["csec_nuisances_data"] # units of sigma  
-csec_nuisances_reference  = config_json["csec_nuisances_reference"] # units of sigma  
+# cross section normalization                                                                                                                                                    
+csec_nuisances_data       = config_json["csec_nuisances_data"] # units of sigma                                                                                                 
+csec_nuisances_reference  = config_json["csec_nuisances_reference"] # units of sigma                                                                                             
 csec_nuisances_sigma      = config_json["csec_nuisances_sigma"]
 
-
 ##### Read data ###############################
-INPUT_PATH_REF = '/eos/user/g/ggrosso/PhD/NOTEBOOKS/HZZ4L/CMS_analysis/h5_files_v2/'
-if 'Z1Z2DeltaPhi' in columns_training:
-        INPUT_PATH_REF = '/eos/user/g/ggrosso/PhD/NOTEBOOKS/HZZ4L/CMS_analysis/h5_files_v3/'
+INPUT_PATH_BKG = '/eos/user/g/ggrosso/PhD/NOTEBOOKS/HZZ4L/CMS_analysis/h5_files_v4/'
+INPUT_PATH_SIG = '/eos/user/g/ggrosso/PhD/NOTEBOOKS/HZZ4L/CMS_analysis/h5_files_v4/'
 
-feature_dict   = {
+feature_bkg   = {
         'weight_REF': np.array([]),
         'weight_DATA': np.array([]),
         'l1Id': np.array([]),
@@ -102,46 +102,76 @@ feature_dict   = {
         'l3Id': np.array([]),
         'l4Id': np.array([]),
 }
+feature_sig = {
+        'weight_REF': np.array([]),
+        'l1Id': np.array([]),
+        'l2Id': np.array([]),
+        'l3Id': np.array([]),
+        'l4Id': np.array([]),
+}
 for key in columns_training:
-        feature_dict[key] = np.array([])
+        feature_bkg[key] = np.array([])
+        feature_sig[key] = np.array([])
 for process in bkg_list:
-        f = h5py.File(INPUT_PATH_REF+process+'.h5', 'r')
+        f = h5py.File(INPUT_PATH_BKG+process+'.h5', 'r')
         #cross section uncertainty factor to generate the reference (exponential parametrization, usually 1)
-        cross_sx_nu_D = np.exp(csec_nuisances_data[process]*csec_nuisances_sigma[process]) 
+        cross_sx_nu_D = np.exp(csec_nuisances_data[process]*csec_nuisances_sigma[process])
         cross_sx_nu_R = np.exp(csec_nuisances_reference[process]*csec_nuisances_sigma[process])
         w = np.array(f.get('weight'))
-        feature_dict['weight_REF']  = np.append(feature_dict['weight_REF'],  w*cross_sx_nu_R)
-        feature_dict['weight_DATA'] = np.append(feature_dict['weight_DATA'], w*cross_sx_nu_D)
-        feature_dict['l1Id']        = np.append(feature_dict['l1Id'], np.array(f.get('l1Id')))
-        feature_dict['l2Id']        = np.append(feature_dict['l2Id'], np.array(f.get('l2Id')))
-        feature_dict['l3Id']        = np.append(feature_dict['l3Id'], np.array(f.get('l3Id')))
-        feature_dict['l4Id']        = np.append(feature_dict['l4Id'], np.array(f.get('l4Id')))
+        feature_bkg['weight_REF']  = np.append(feature_bkg['weight_REF'],  w*cross_sx_nu_R)
+        feature_bkg['weight_DATA'] = np.append(feature_bkg['weight_DATA'], w*cross_sx_nu_D)
+        feature_bkg['l1Id']        = np.append(feature_bkg['l1Id'], np.array(f.get('l1Id')))
+        feature_bkg['l2Id']        = np.append(feature_bkg['l2Id'], np.array(f.get('l2Id')))
+        feature_bkg['l3Id']        = np.append(feature_bkg['l3Id'], np.array(f.get('l3Id')))
+        feature_bkg['l4Id']        = np.append(feature_bkg['l4Id'], np.array(f.get('l4Id')))
         for key in columns_training:
-                feature_dict[key] = np.append(feature_dict[key], np.array(f.get(key)))
+                feature_bkg[key] = np.append(feature_bkg[key], np.array(f.get(key)))
         f.close()
         print('process: %s --> number of simulations: %i, yield: %f'%(process, w.shape[0], np.sum(w)))
-
+for process in sig_list:
+        f = h5py.File(INPUT_PATH_SIG+process+'.h5', 'r')
+        w = np.array(f.get('weight'))
+        feature_sig['weight_REF'] = np.append(feature_sig['weight_REF'], w)
+        feature_sig['l1Id']        = np.append(feature_sig['l1Id'], np.array(f.get('l1Id')))
+        feature_sig['l2Id']        = np.append(feature_sig['l2Id'], np.array(f.get('l2Id')))
+        feature_sig['l3Id']        = np.append(feature_sig['l3Id'], np.array(f.get('l3Id')))
+        feature_sig['l4Id']        = np.append(feature_sig['l4Id'], np.array(f.get('l4Id')))
+        for key in columns_training:
+                feature_sig[key] = np.append(feature_sig[key], np.array(f.get(key)))
+        f.close()
+        print('process: %s --> number of simulations: %i, yield: %f'%(process, w.shape[0], np.sum(w)))
 #select only 4mu final state
-mask = (np.abs(feature_dict['l1Id'])==13)*(np.abs(feature_dict['l2Id'])==13)*(np.abs(feature_dict['l3Id'])==13)*(np.abs(feature_dict['l4Id'])==13)
-for key in list(feature_dict.keys()):
+mask = (np.abs(feature_bkg['l1Id'])==13)*(np.abs(feature_bkg['l2Id'])==13)*(np.abs(feature_bkg['l3Id'])==13)*(np.abs(feature_bkg['l4Id'])==13)
+for key in list(feature_bkg.keys()):
     if key in ['l1Id', 'l2Id', 'l3Id', 'l4Id']: continue
-    var = feature_dict[key]
+    var = feature_bkg[key]
     var = var[mask]
-    feature_dict[key] = var
+    feature_bkg[key] = var
 for key in ['l1Id', 'l2Id', 'l3Id', 'l4Id']:
-    var = feature_dict[key]
+    var = feature_bkg[key]
     var = var[mask]
-    feature_dict[key] = var
+    feature_bkg[key] = var
 
-weight_sum_R = np.sum(feature_dict['weight_REF'])
-weight_sum_D = np.sum(feature_dict['weight_DATA'])
+mask = (np.abs(feature_sig['l1Id'])==13)*(np.abs(feature_sig['l2Id'])==13)*(np.abs(feature_sig['l3Id'])==13)*(np.abs(feature_sig['l4Id'])==13)
+for key in list(feature_sig.keys()):
+    if key in ['l1Id', 'l2Id', 'l3Id', 'l4Id']: continue
+    var = feature_sig[key]
+    var = var[mask]
+    feature_sig[key] = var
+for key in ['l1Id', 'l2Id', 'l3Id', 'l4Id']:
+    var = feature_sig[key]
+    var = var[mask]
+    feature_sig[key] = var
 
-REF     = np.stack([feature_dict[key] for key in list(columns_training)], axis=1)
-W_REF   = feature_dict['weight_REF']
+weight_sum_R = np.sum(feature_bkg['weight_REF'])
+weight_sum_D = np.sum(feature_bkg['weight_DATA'])
 
-#unweighting DATA
+REF     = np.stack([feature_bkg[key] for key in list(columns_training)], axis=1)
+W_REF   = feature_bkg['weight_REF']
+
+#unweighting DATA: BKG
 N_REF  = REF.shape[0]
-weight = feature_dict['weight_DATA']
+weight = feature_bkg['weight_DATA']
 f_MAX  = np.max(weight) 
 
 indeces  = np.arange(weight.shape[0])
@@ -191,6 +221,56 @@ weight  = np.delete(W_REF, DATA_idx, 0)
 REF     = np.delete(REF, DATA_idx, 0)
 # correct weights for the factor lost due to sampling out the toy
 weight = weight *weight_sum_D/np.sum(weight)
+
+#unweighting DATA: SIGNAL 
+SIG     = np.stack([feature_sig[key] for key in list(columns_training)], axis=1)
+W_SIG   = feature_sig['weight_REF']
+N_SIG  = SIG.shape[0]
+f_MAX  = np.max(W_SIG)
+
+indeces  = np.arange(W_SIG.shape[0])
+np.random.shuffle(indeces)
+DATA_SIG = np.array([])
+DATA_idx = np.array([])
+print('normalization effect on N_D: %f'%(np.exp(norm_generation*norm_sigma)))
+N_Sig_p   = np.random.poisson(lam=N_Sig*np.exp(norm_generation*norm_sigma), size=1)[0]
+print('N_Sig: '+str(N_Sig))
+print('N_Sig_Pois: '+str(N_Sig_p))
+if N_SIG<N_Sig_p:
+        print('Cannot produce %i events; only %i available'%(N_Sig_p, N_SIG))
+        exit()
+counter = 0
+while DATA_SIG.shape[0]<N_Sig_p:
+        i = indeces[counter]
+        x = SIG[i:i+1, :]
+        f = W_SIG[i]
+        if f<0:
+                DATA_idx = np.append(DATA_idx, i)
+                counter+=1
+                continue
+        r = f/f_MAX
+        if r>=1:
+                if DATA_SIG.shape[0]==0:
+                        DATA_SIG = x
+                        DATA_idx = np.append(DATA_idx, i)
+                else:
+                        DATA_SIG = np.concatenate((DATA_SIG, x), axis=0)
+                        DATA_idx = np.append(DATA_idx, i)
+        else:
+                u = np.random.uniform(size=1)
+                if u<= r:
+                        if DATA_SIG.shape[0]==0:
+                                DATA_SIG = x
+                                DATA_idx = np.append(DATA_idx, i)
+                        else:
+                                DATA_SIG = np.concatenate((DATA_SIG, x), axis=0)
+                                DATA_idx = np.append(DATA_idx, i)
+        counter+=1
+        if counter>=SIG.shape[0]:
+                print('End of file')
+                N_Sig_p = DATA_SIG.shape[0]
+                break
+DATA = np.concatenate((DATA, DATA_SIG), axis=0)
 
 '''
 # display training variables to debug
@@ -242,8 +322,8 @@ target  = np.stack((target, weights), axis=1)
 #standardize dataset #######################
 for j in range(feature.shape[1]):
     vec  = feature[:, j]
-    mean = mean_bkg[columns_training[j]]#np.mean(vec)                                                                    
-    std  = std_bkg[columns_training[j]]#np.std(vec) 
+    mean = mean_bkg[columns_training[j]]#np.mean(vec)
+    std  = std_bkg[columns_training[j]]#np.std(vec)
     if np.min(vec) < 0:
         vec = vec- mean
         vec = vec *1./ std

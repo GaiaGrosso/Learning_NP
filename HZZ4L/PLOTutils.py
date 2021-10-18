@@ -22,6 +22,7 @@ sig_list = [
     'WplusH125_redTree_2018', 
 ]
 
+
 #### std variables
 mean_bkg = {
      'Z1Eta': -0.004484998969496296,
@@ -94,4 +95,65 @@ std_bkg = {
          'l4Phi': 1.8156768,
          'l4Pt': 36.505836,
          'phistarZ1': 1.7840887
+}
+################
+color_code = {
+    'AllData_ZX_redTree_2018':                 '#ffffcc',
+    'ggTo2e2tau_Contin_MCFM701_redTree_2018':  '#ffeda0',   
+    'ggTo4mu_Contin_MCFM701_redTree_2018':     '#fed976',             
+    'ggTo2mu2tau_Contin_MCFM701_redTree_2018': '#feb24c',  
+    'ggTo4tau_Contin_MCFM701_redTree_2018':    '#fd8d3c',
+    'ggTo2e2mu_Contin_MCFM701_redTree_2018':   '#fc4e2a',  
+    'ggTo4e_Contin_MCFM701_redTree_2018':      '#e31a1c',
+    'ZZTo4lext_redTree_2018':                  '#b10026',
+}
+
+label_code = {
+    'AllData_ZX_redTree_2018':                 r'$Z+X$',
+    'ggTo2e2tau_Contin_MCFM701_redTree_2018':  r'$gg \rightarrow 2e2\tau$',   
+    'ggTo4mu_Contin_MCFM701_redTree_2018':     r'$gg \rightarrow 4\mu$',             
+    'ggTo2mu2tau_Contin_MCFM701_redTree_2018': r'$gg \rightarrow 2\mu2\tau$',  
+    'ggTo4tau_Contin_MCFM701_redTree_2018':    r'$gg \rightarrow 4\tau$',
+    'ggTo2e2mu_Contin_MCFM701_redTree_2018':   r'$gg \rightarrow 2e2\mu$',  
+    'ggTo4e_Contin_MCFM701_redTree_2018':      r'$gg \rightarrow 4e$',
+    'ZZTo4lext_redTree_2018':                  r'$qq \rightarrow 4l$',
+}
+
+bins_code = {
+        'ZZMass': np.arange(60, 500, 5), 
+        'ZZPt': np.arange(0, 500, 5), 
+        'ZZEta': np.arange(-2.5, 2.5, 0.1), 
+        'ZZPhi': np.arange(-3.2, 3.2, 0.1),
+        'l1Pt': np.arange(0, 500, 5),
+        'l1Eta': np.arange(-2.5, 2.5, 0.1),
+        'l1Phi': np.arange(-3.2, 3.2, 0.1),
+        'l2Pt': np.arange(0, 500, 5),
+        'l2Eta': np.arange(-2.5, 2.5, 0.1),
+        'l2Phi': np.arange(-3.2, 3.2, 0.1),
+        'l3Pt': np.arange(0, 500, 5),
+        'l3Eta': np.arange(-2.5, 2.5, 0.1),
+        'l3Phi': np.arange(-3.2, 3.2, 0.1),
+        'l4Pt': np.arange(0, 500, 5),
+        'l4Eta': np.arange(-2.5, 2.5, 0.1),
+        'l4Phi': np.arange(-3.2, 3.2, 0.1),
+}
+
+
+xlabel_code = {
+        'ZZMass': r'$m_{ZZ}$', 
+        'ZZPt': r'$PT_{ZZ}$', 
+        'ZZEta': r'$\eta_{ZZ}$', 
+        'ZZPhi': r'$\phi_{ZZ}$',
+        'l1Pt': r'$PT_{l1}$',
+        'l1Eta': r'$\eta_{l1}$',
+        'l1Phi': r'$\phi_{l1}$',
+        'l2Pt': r'$PT_{l2}$',
+        'l2Eta': r'$\eta_{l2}$',
+        'l2Phi': r'$\phi_{l2}$',
+        'l3Pt': r'$PT_{l3}$',
+        'l3Eta': r'$\eta_{l3}$',
+        'l3Phi': r'$\phi_{l3}$',
+        'l4Pt': r'$PT_{l4}$',
+        'l4Eta': r'$\eta_{l4}$',
+        'l4Phi': r'$\phi_{l4}$',
 }
