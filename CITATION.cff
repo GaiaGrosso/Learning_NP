@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Grosso
+    given-names: Gaia
+    orcid: https://orcid.org/0000-0002-8303-3291
+title: "New Physics Learning Machine (NPLM): tools"
+version: 1.0
+date-released: 2021-11-17
